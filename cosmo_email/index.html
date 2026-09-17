@@ -50,7 +50,7 @@ header, section { display: grid; gap: 14px; }
 .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 a { color: var(--accent); }
 
-.cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .card { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 18px 18px 16px;
   display: grid; gap: 8px; align-content: start; color: inherit; text-decoration: none; }
 .card:hover h3, .card:focus-visible h3 { color: var(--accent); }
@@ -92,11 +92,16 @@ body.editing #doc:focus { outline: 1px dashed var(--muted); }
   <header>
     <div class="eyebrow">Phantom + cosmoSPHere</div>
     <h1>Phantom on GPU</h1>
-    <p class="lede">Phantom’s density and force calculations running on a single GPU through cosmoSPHere, with periodic boundaries, cooling, disc viscosity and a choice of cubic or quintic kernel. Three pages cover how fast it is, where the time goes, and how closely it agrees with Phantom on CPU.</p>
+    <p class="lede">Phantom’s density and force calculations running on a single GPU through cosmoSPHere, with periodic boundaries, cooling, disc viscosity and a choice of cubic or quintic kernel. These pages cover how to run it, how fast it is, where the time goes, and how closely it agrees with Phantom on CPU.</p>
   </header>
 
   <section>
     <nav class="cards" aria-label="Pages">
+      <a class="card" href="getting-started.html">
+        <h3>Getting started</h3>
+        <p>From a fresh clone to Phantom’s Sedov blast on a GPU, and the same run on the CPU: a quick start for Phantom users, then the detail.</p>
+        <div class="fig">7 commands <small>clone to GPU run</small></div>
+      </a>
       <a class="card" href="throughput.html">
         <h3>Throughput</h3>
         <p>Particles per second on the Sedov benchmark from the Shamrock paper and on Shamrock’s own 2²⁵-particle benchmark, against Phantom on CPU and Shamrock’s published figures.</p>

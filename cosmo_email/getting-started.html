@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Phantom GPU Getting Started</title>
+<meta name="description" content="Clone, build and run Phantom's Sedov blast on a GPU with cosmoSPHere, then the same run on the CPU.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style id="page-style">
+:root {
+  --ground: #F3F5F7;
+  --surface: #FFFFFF;
+  --ink: #14202B;
+  --muted: #5A6875;
+  --faint: #8995A1;
+  --rule: #D3DAE1;
+  --rule-soft: #E6EBEF;
+  --accent: #0E6A87;
+  --code-bg: #EEF2F5;
+  --sans: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  --cond: "IBM Plex Sans Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0F161C; --surface: #151F27; --ink: #E3EAF0; --muted: #9AA8B4; --faint: #6D7B87;
+    --rule: #2A3842; --rule-soft: #1F2B34; --accent: #5CB8D6; --code-bg: #0B1116;
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #0F161C; --surface: #151F27; --ink: #E3EAF0; --muted: #9AA8B4; --faint: #6D7B87;
+  --rule: #2A3842; --rule-soft: #1F2B34; --accent: #5CB8D6; --code-bg: #0B1116;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--ground); color: var(--ink);
+  font-family: var(--sans); font-size: 15px; line-height: 1.55;
+  margin: 0; padding-inline: 20px; padding-block: 40px 64px;
+}
+.page { max-width: 900px; margin: 0 auto; display: grid; gap: 44px; }
+h1, h2, h3 { font-family: var(--cond); font-weight: 600; text-wrap: balance; margin: 0; letter-spacing: -0.005em; }
+h1 { font-size: 34px; line-height: 1.12; }
+h2 { font-size: 23px; }
+h3 { font-size: 17px; }
+p { margin: 0; max-width: 72ch; }
+a { color: var(--accent); }
+.eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+header, section { display: grid; gap: 14px; }
+.lede { color: var(--muted); font-size: 16px; }
+code { font-family: var(--mono); font-size: 0.9em; background: var(--code-bg); padding: 1px 4px; border-radius: 3px; }
+pre { margin: 0; background: var(--code-bg); border: 1px solid var(--rule); border-radius: 6px; padding: 12px 14px;
+  font-family: var(--mono); font-size: 13px; line-height: 1.55; overflow-x: auto; white-space: pre; }
+pre code { background: none; padding: 0; font-size: inherit; }
+.quick { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 20px 22px; display: grid; gap: 12px; }
+.quick h2 { font-size: 21px; }
+.quick p { color: var(--muted); font-size: 14px; }
+.step { display: grid; gap: 8px; }
+.step h3 { font-size: 16px; }
+ul.plain { margin: 0; padding-left: 18px; display: grid; gap: 6px; max-width: 76ch; }
+ul.plain li { color: var(--muted); }
+ul.plain b, ul.plain code { color: var(--ink); }
+.panel { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 560px; }
+th, td { text-align: left; padding: 9px 14px; vertical-align: top; font-size: 14px; }
+thead th { font-family: var(--mono); font-weight: 500; font-size: 11px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--rule); white-space: nowrap; }
+tbody tr + tr td { border-top: 1px solid var(--rule-soft); }
+td code { white-space: nowrap; }
+.checked { font-family: var(--mono); font-size: 12.5px; color: var(--muted); }
+@media (max-width: 760px) { h1 { font-size: 28px; } }
+
+
+/* in-place editing */
+.edit-bar { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 10;
+  display: flex; gap: 8px; align-items: center; background: var(--surface); border: 1px solid var(--rule);
+  border-radius: 6px; padding: 6px; box-shadow: 0 2px 10px rgba(20, 32, 43, 0.12); font-family: var(--sans); }
+.edit-bar[hidden] { display: none !important; }
+.edit-bar button { font: 500 13px var(--sans); color: var(--ink); background: transparent; border: 1px solid var(--rule);
+  border-radius: 4px; padding: 5px 12px; cursor: pointer; }
+.edit-bar button.primary { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.edit-bar button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.edit-bar button:disabled { opacity: 0.5; cursor: default; }
+.edit-bar .msg { font-size: 12.5px; color: var(--muted); padding-inline: 6px; max-width: 32ch; }
+body.editing #doc { outline: 1px dashed var(--rule); outline-offset: 12px; }
+body.editing #doc:focus { outline: 1px dashed var(--muted); }
+
+</style>
+</head>
+<body>
+<main id="doc">
+<div class="page">
+  <header>
+    <div class="eyebrow">Phantom + cosmoSPHere</div>
+    <h1>Getting started: Sedov on a GPU</h1>
+    <p class="lede">From a fresh clone to Phantom’s Sedov blast wave running on a GPU, then the same run on the CPU for comparison. For someone who already knows Phantom, the quick start is all you need.</p>
+  </header>
+
+  <section class="quick">
+    <h2>Quick start</h2>
+    <pre><code>git clone --recurse-submodules -b GPU https://github.com/tbending/phantom.git
+cd phantom
+make phantom SETUP=sedov SYSTEM=gfortran GPU=yes GPU_TARGET=a100 IND_TIMESTEPS=no COSMO_DIR=$PWD/cosmoSPHere
+make setup   SETUP=sedov SYSTEM=gfortran GPU=yes GPU_TARGET=a100 IND_TIMESTEPS=no COSMO_DIR=$PWD/cosmoSPHere
+mkdir run &amp;&amp; cd run
+../bin/phantomsetup sedov      # writes sedov.setup with the defaults, then stops
+../bin/phantomsetup sedov      # writes sedov_00000.tmp and sedov.in
+../bin/phantom sedov.in</code></pre>
+    <ul class="plain">
+      <li><code>GPU_TARGET</code>: <code>a100</code>, <code>hopper</code> (GH200, H100) or <code>mi300</code> (AMD MI300A). Needs <code>nvcc</code> with <code>CUDA_HOME</code> set, or <code>hipcc</code> with <code>ROCM_PATH</code> set.</li>
+      <li><code>IND_TIMESTEPS=no</code> is required; the kernel may be cubic (default) or quintic (<code>KERNEL=quintic</code>).</li>
+      <li>The log says <code>cosmoSPHere: use_gpu_dens = T</code>. <code>COSMO_GPU=0</code> runs the same binary on the CPU.</li>
+      <li>Unsupported physics stops with a <code>FATAL</code> message rather than running wrongly.</li>
+    </ul>
+    <p class="checked">Checked from a fresh clone of GPU (c71abc0c4, cosmoSPHere 38e37cb) on an A100, 17 September 2026: default Sedov, 174,000 particles, 159 steps, total energy within 3×10⁻⁹ of the CPU run.</p>
+  </section>
+
+  <section class="step">
+    <h2>1. Clone, with the submodules</h2>
+    <pre><code>git clone --recurse-submodules -b GPU https://github.com/tbending/phantom.git
+cd phantom</code></pre>
+    <p>The <code>GPU</code> branch of <code>tbending/phantom</code> carries the GPU density and force passes. Two submodules come with it:</p>
+    <div class="panel"><table>
+      <thead><tr><th>Directory</th><th>What it is</th></tr></thead>
+      <tbody>
+        <tr><td><code>phantom/</code></td><td>Phantom, with the GPU interface in <code>src/main/gpu_dens_iface.F90</code> and <code>src/main/gpu_force_iface.F90</code></td></tr>
+        <tr><td><code>phantom/cosmoSPHere/</code></td><td>The C++ GPU density and force passes (its <code>phantom</code> branch), built automatically</td></tr>
+        <tr><td><code>phantom/octree-miniapp/</code></td><td>Cornerstone, the GPU octree</td></tr>
+      </tbody>
+    </table></div>
+    <p>If you cloned without <code>--recurse-submodules</code>, run <code>git submodule update --init</code> in <code>phantom/</code>.</p>
+  </section>
+
+  <section class="step">
+    <h2>2. Compilers</h2>
+    <p>A Fortran compiler with OpenMP, and the GPU toolchain for your card.</p>
+    <div class="panel"><table>
+      <thead><tr><th>GPU</th><th><code>GPU_TARGET</code></th><th>GPU compiler</th><th>Tested with</th></tr></thead>
+      <tbody>
+        <tr><td>NVIDIA A100</td><td><code>a100</code></td><td><code>nvcc</code></td><td>CUDA 12.5, gfortran 11.1</td></tr>
+        <tr><td>NVIDIA GH200 / H100 (Hopper)</td><td><code>hopper</code></td><td><code>nvcc</code></td><td>CUDA 13.0, gfortran 11.5</td></tr>
+        <tr><td>NVIDIA Quadro (Pascal)</td><td><code>quadro_pascal</code></td><td><code>nvcc</code></td><td>not recently tested</td></tr>
+        <tr><td>AMD MI300A</td><td><code>mi300</code></td><td><code>hipcc</code> (AMD HIP)</td><td>HIP 7.2 / ROCm 7.2, gfortran 11.1</td></tr>
+      </tbody>
+    </table></div>
+    <p>The targets are defined in <code>build/Makefile_GPU</code>; a new card needs only a few lines there. Before building, make the toolchain visible:</p>
+    <pre><code># NVIDIA: nvcc on the PATH, and the CUDA install for linking
+export CUDA_HOME=$(dirname $(dirname $(command -v nvcc)))
+export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
+
+# AMD: hipcc on the PATH, and the ROCm install for linking
+export ROCM_PATH=/path/to/rocm
+export LD_LIBRARY_PATH=$ROCM_PATH/lib:$LD_LIBRARY_PATH</code></pre>
+    <p>On GH200, clang also compiles the CUDA code, but <code>nvcc</code> gives a 25% faster force kernel.</p>
+  </section>
+
+  <section class="step">
+    <h2>3. Build <code>phantom</code> and <code>phantomsetup</code></h2>
+    <p>From <code>phantom/</code>, build the two programs with <b>separate</b> <code>make</code> calls (one call naming both fails):</p>
+    <pre><code>T=a100    # or hopper, mi300, quadro_pascal
+OPTS="SETUP=sedov SYSTEM=gfortran GPU=yes GPU_TARGET=$T IND_TIMESTEPS=no COSMO_DIR=$PWD/cosmoSPHere"
+make phantom $OPTS
+make setup   $OPTS</code></pre>
+    <ul class="plain">
+      <li><b><code>SYSTEM=gfortran</code></b> is needed as for any Phantom build, unless <code>SYSTEM</code> is set in your environment.</li>
+      <li><b><code>GPU=yes GPU_TARGET=…</code></b> builds cosmoSPHere for your card and links it in. <code>GPU=no</code> (the default) is ordinary CPU Phantom.</li>
+      <li><b><code>IND_TIMESTEPS=no</code></b> is required: the GPU path uses global timesteps, and the Sedov setup otherwise defaults to individual timesteps.</li>
+      <li><b><code>KERNEL</code></b> may be <code>cubic</code> (the default for Sedov) or <code>quintic</code>; other kernels are refused.</li>
+      <li>The Sedov build is periodic (<code>PERIODIC=yes</code>), which the GPU path supports.</li>
+    </ul>
+    <p>The programs appear in <code>bin/</code>.</p>
+  </section>
+
+  <section class="step">
+    <h2>4. Set up a Sedov blast</h2>
+    <pre><code>mkdir run &amp;&amp; cd run
+../bin/phantomsetup sedov      # first call: writes sedov.setup with the defaults and stops
+../bin/phantomsetup sedov      # second call: writes sedov_00000.tmp and sedov.in</code></pre>
+    <p>The defaults are <code>npartx = 50</code> on a close-packed lattice, which gives 174,000 particles and runs to t = 0.1 in a few seconds on a GPU. For the benchmark size, set <code>npartx = 100</code> in <code>sedov.setup</code> before the second call (1,368,000 particles). <code>sedov.in</code> already points at <code>sedov_00000.tmp</code>, so no renaming is needed.</p>
+  </section>
+
+  <section class="step">
+    <h2>5. Run on the GPU, then on the CPU</h2>
+    <pre><code>export OMP_NUM_THREADS=16 OMP_PROC_BIND=close OMP_PLACES=cores
+../bin/phantom sedov.in &gt; gpu.log
+grep use_gpu_dens gpu.log      # cosmoSPHere: use_gpu_dens = T</code></pre>
+    <p>The same binary runs the unchanged CPU path when <code>COSMO_GPU=0</code> is set, which is the cleanest comparison. Each run writes its own dumps and rewrites <code>sedov.in</code>, so set up a second directory from scratch:</p>
+    <pre><code>cd .. &amp;&amp; mkdir run_cpu &amp;&amp; cd run_cpu
+../bin/phantomsetup sedov &amp;&amp; ../bin/phantomsetup sedov
+COSMO_GPU=0 ../bin/phantom sedov.in &gt; cpu.log</code></pre>
+    <p><b>What to expect.</b> Both runs take the same number of steps (159 with the defaults), and total energy in the two <code>.ev</code> files agrees to a few ×10⁻⁹ at the default <code>tolh = 1e-4</code>. Most of the remaining difference is the h tolerance: with <code>tolh = 1e-8</code> the runs agree to about 10⁻¹⁰. The timing table at the end of each log gives the cost of <code>step</code>, <code>density</code> and <code>force</code>; <code>step</code> excludes all I/O, so compare that rather than wall time.</p>
+  </section>
+
+  <section class="step">
+    <h2>6. Benchmark settings (Shamrock paper, arXiv:2503.09713 §5.2.3)</h2>
+    <p>To measure particles per second as in the <a href="https://arxiv.org/abs/2503.09713">Shamrock paper</a>’s Figure 17:</p>
+    <ul class="plain">
+      <li>set up with <code>npartx = 100</code> (1,368,000 particles);</li>
+      <li>in <code>sedov.in</code>, set <code>C_cour = 0.001</code> and <code>C_force = 0.001</code> (no leapfrog corrector iterations), and evolve five steps (<code>nmax = 5</code>) to make the restart, as the paper does;</li>
+      <li>from that restart, with <code>tmax = dtmax = 1.000</code> (no dumps in the window), run twice, with <code>nmax = 20</code> and <code>nmax = 120</code>;</li>
+      <li>particles/s = 1,368,000 × 100 / (step<sub>120</sub> − step<sub>20</sub>), where step is the total <code>step</code> time in each log’s timing table.</li>
+    </ul>
+    <p>Differencing two runs cancels start-up and warm-up costs.</p>
+  </section>
+
+  <section class="step">
+    <h2>7. What the GPU path does, and does not do yet</h2>
+    <p>It runs hydrodynamics with:</p>
+    <ul class="plain">
+      <li>adiabatic or isothermal gas, including locally isothermal discs, with <code>ipdv_heating</code> and <code>ishock_heating</code>;</li>
+      <li>cooling applied in the force pass;</li>
+      <li>open or periodic boundaries;</li>
+      <li>a single gas particle mass;</li>
+      <li>the M4 cubic or M6 quintic spline;</li>
+      <li>global timesteps;</li>
+      <li>external potentials, sink particles (their forces stay on the CPU) and driven turbulence;</li>
+      <li>disc viscosity (<code>alphaSS</code>).</li>
+    </ul>
+    <p>Phantom stops with a <code>FATAL</code> message when the input asks for something the GPU path does not compute:</p>
+    <div class="panel"><table>
+      <thead><tr><th>Option</th><th>Why it is refused</th></tr></thead>
+      <tbody>
+        <tr><td>individual timesteps</td><td>build with <code>IND_TIMESTEPS=no</code></td></tr>
+        <tr><td>MHD, dust, radiation, self-gravity, general relativity</td><td>not computed on GPU</td></tr>
+        <tr><td><code>curlv = T</code></td><td>curl v is not computed; set <code>curlv = F</code></td></tr>
+        <tr><td>physical viscosity (<code>irealvisc &gt; 0</code>)</td><td>not computed on GPU</td></tr>
+        <tr><td>sink creation, HII regions, APR, ray-traced dust temperature</td><td>need the kd-tree, which the GPU path does not build</td></tr>
+        <tr><td>sinks in the tree (<code>use_sinktree</code>)</td><td>sink–gas forces in the tree walk are not computed on GPU</td></tr>
+        <tr><td>boundary particles, or any other non-gas particle type</td><td>the GPU solves every particle as gas</td></tr>
+        <tr><td>entropy as the energy variable, <code>track_lum</code>, sinks with heating</td><td>change du/dt in ways the GPU sum does not</td></tr>
+        <tr><td><code>icooling = 9</code>, or force-pass cooling with chemistry or dust temperature</td><td>not supported on GPU</td></tr>
+        <tr><td>kernels other than cubic and quintic</td><td>build with <code>KERNEL=cubic</code> or <code>quintic</code></td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="step">
+    <h2>Timing detail</h2>
+    <p><code>COSMO_DENS_STATS=1</code> prints one line per GPU call with the device-side cost of each phase: upload, key sort, tree build, neighbour lists, the density, gradient and force kernels, and download.</p>
+  </section>
+</div>
+</main>
+
+<script id="page-editor">
+// In-place editing.  A writer presses Edit, changes any text, and Save keeps the edit:
+//  - in the Claude viewer, by publishing the page as the new version (every open view
+//    reloads to it);
+//  - opened from disk (file://), by writing the page back to a file: Chrome asks where the
+//    first time (pick the same file to overwrite it) and reuses that file afterwards;
+//    browsers without that API download the page instead.
+// Anywhere else (a web server such as GitHub Pages) the page stays read-only.
+// The page's source is rebuilt from its authored parts: the head, the page style, the
+// edited #doc markup and this script - never the live document.
+(function () {
+  const DRAFT = 'page-edit-draft:' + location.pathname;
+  const doc = document.getElementById('doc');
+
+  const bar = document.createElement('div');
+  bar.className = 'edit-bar';
+  bar.hidden = true;
+  bar.innerHTML = '<span class="msg" id="edit-msg" role="status"></span>' +
+    '<button type="button" id="edit-cancel" hidden>Cancel</button>' +
+    '<button type="button" id="edit-toggle">Edit page</button>';
+  document.body.appendChild(bar);
+  const msg = bar.querySelector('#edit-msg');
+  const toggle = bar.querySelector('#edit-toggle');
+  const cancel = bar.querySelector('#edit-cancel');
+  let artifact = null, original = null, editing = false, fileHandle = null;
+  const LOCAL = location.protocol === 'file:';
+
+  function setEditable(on) {
+    // the whole page body is one editing region, so every piece of text can be changed
+    if (on) doc.setAttribute('contenteditable', 'true'); else doc.removeAttribute('contenteditable');
+    doc.querySelectorAll('[contenteditable]').forEach(el => { if (el !== doc) el.removeAttribute('contenteditable'); });
+    document.body.classList.toggle('editing', on);
+    toggle.textContent = on ? 'Save' : 'Edit page';
+    toggle.classList.toggle('primary', on);
+    cancel.hidden = !on;
+    editing = on;
+  }
+
+  function cleanMarkup() {
+    const copy = doc.cloneNode(true);
+    copy.removeAttribute('contenteditable');
+    copy.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
+    return copy.innerHTML.trim();
+  }
+
+  function source(markup) {
+    const headParts = [];
+    const title = document.querySelector('title');
+    if (title) headParts.push(title.outerHTML);
+    document.querySelectorAll('meta[name="description"], link[rel="preconnect"], link[rel="stylesheet"]')
+      .forEach(el => headParts.push(el.outerHTML));
+    const style = document.getElementById('page-style').outerHTML;
+    const script = document.getElementById('page-editor');
+    return '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n' +
+      '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n' +
+      headParts.join('\n') + '\n' + style + '\n</head>\n<body>\n<main id="doc">\n' + markup +
+      '\n</main>\n\n<script id="page-editor">' + script.textContent + '<\/script>\n</body>\n</html>\n';
+  }
+
+  async function saveLocal(markup) {
+    const html = source(markup);
+    const name = decodeURIComponent(location.pathname.split('/').pop() || 'page.html');
+    if (window.showSaveFilePicker) {
+      if (!fileHandle) {
+        fileHandle = await window.showSaveFilePicker({
+          suggestedName: name,
+          types: [{ description: 'HTML page', accept: { 'text/html': ['.html'] } }] });
+      }
+      const w = await fileHandle.createWritable();
+      await w.write(html); await w.close();
+      return 'Saved to ' + fileHandle.name + '.';
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+    a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    return 'Downloaded ' + name + '; replace the original with it.';
+  }
+
+  async function save() {
+    const markup = cleanMarkup();
+    if (markup === original) { setEditable(false); msg.textContent = 'No changes.'; return; }
+    if (LOCAL) {
+      toggle.disabled = true; cancel.disabled = true; msg.textContent = 'Saving…';
+      try {
+        const done = await saveLocal(markup);
+        original = markup; setEditable(false); msg.textContent = done;
+        try { sessionStorage.removeItem(DRAFT); } catch (e) {}
+      } catch (err) {
+        msg.textContent = (err && err.name === 'AbortError')
+          ? 'Not saved. Press Save to choose a file.' : 'Saving failed: ' + (err && err.message || err);
+      }
+      toggle.disabled = false; cancel.disabled = false;
+      return;
+    }
+    toggle.disabled = true; cancel.disabled = true;
+    msg.textContent = 'Saving…';
+    try { sessionStorage.setItem(DRAFT, markup); } catch (e) {}
+    try {
+      await artifact.publish(source(markup));
+      try { sessionStorage.removeItem(DRAFT); } catch (e) {}
+      msg.textContent = 'Saved. Reloading…';
+    } catch (err) {
+      toggle.disabled = false; cancel.disabled = false;
+      const code = err && err.code;
+      if (code === 'conflict') {
+        msg.textContent = 'Someone saved a newer version; loading it. Your edit is kept for this tab.';
+      } else if (code === 'not_writer' || code === 'not_granted' || code === 'not_declared' ||
+                 code === 'consent_required' || code === 'capability_disabled' || code === 'capability_removed') {
+        setEditable(false); bar.hidden = true;
+        try { sessionStorage.removeItem(DRAFT); } catch (e) {}
+      } else if (code === 'rate_limited') {
+        msg.textContent = 'Saving too often. Wait a moment, then press Save again.';
+      } else if (code === 'too_large' || code === 'invalid_content') {
+        msg.textContent = 'This edit could not be saved (' + code + '). Cancel to discard it.';
+      } else {
+        msg.textContent = 'Saving failed. Press Save to try again.';
+      }
+    }
+  }
+
+  toggle.addEventListener('click', () => {
+    if (!editing) { original = cleanMarkup(); msg.textContent = ''; setEditable(true); }
+    else save();
+  });
+  cancel.addEventListener('click', () => {
+    doc.innerHTML = original; setEditable(false); msg.textContent = '';
+    try { sessionStorage.removeItem(DRAFT); } catch (e) {}
+  });
+
+  (async () => {
+    if (LOCAL) { bar.hidden = false; restoreDraft(); return; }
+    // the viewer injects window.claude; on any other web server the page stays read-only
+    for (let i = 0; i < 50 && !(window.claude && typeof window.claude.use === 'function'); i++)
+      await new Promise(r => setTimeout(r, 100));
+    const claude = window.claude;
+    if (!claude || typeof claude.use !== 'function') return;
+    artifact = await claude.use('artifact');
+    if (!artifact) return;
+    bar.hidden = false;
+    restoreDraft();
+  })();
+
+  function restoreDraft() {
+    let draft = null;
+    try { draft = sessionStorage.getItem(DRAFT); } catch (e) {}
+    if (draft && draft !== cleanMarkup()) {
+      original = cleanMarkup();
+      doc.innerHTML = draft;
+      setEditable(true);
+      msg.textContent = 'Your unsaved edit was restored.';
+    }
+  }
+})();
+
+</script>
+</body>
+</html>
