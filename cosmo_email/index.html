@@ -59,6 +59,11 @@ a { color: var(--accent); }
 .card .fig { font-family: var(--mono); font-size: 13px; color: var(--ink); font-variant-numeric: tabular-nums; }
 .card .fig small { color: var(--faint); font-size: 12px; }
 footer { color: var(--faint); font-size: 13px; }
+.refs { display: grid; gap: 10px; }
+.refs h2 { font-size: 21px; }
+.refs ul { margin: 0; padding-left: 18px; display: grid; gap: 8px; max-width: 76ch; }
+.refs li { color: var(--muted); font-size: 14.5px; }
+.refs li a { font-weight: 500; }
 @media (max-width: 760px) {
   h1 { font-size: 28px; }
   .cards { grid-template-columns: 1fr; }
@@ -108,6 +113,15 @@ body.editing #doc:focus { outline: 1px dashed var(--muted); }
         <div class="fig">30 of 36 <small>setups run on GPU</small></div>
       </a>
     </nav>
+  </section>
+
+  <section class="refs">
+    <h2>The two benchmarks</h2>
+    <ul>
+      <li><a href="https://arxiv.org/abs/2503.09713">Shamrock paper</a> (David-Cléris, Laibe &amp; Lapeyre 2025, MNRAS 539, 1; arXiv:2503.09713). The Sedov time-stepping benchmark is its §5.2.3, and the 1.37M-particle point is the third point of its Fig. 17.</li>
+      <li><a href="https://github.com/Shamrock-code/Shamrock/blob/main/examples/benchmarks/sph_homogeneous_benchmark.py">Shamrock homogeneous SPH benchmark script</a>, the 2²⁵-particle benchmark, in the Shamrock repository.</li>
+      <li><a href="https://shamrock-code.github.io/Shamrock/sphinx/_as_gen/benchmarks/run_sph_homogeneous_results.html">Shamrock’s published results for that benchmark</a> (Shamrock documentation), with the <a href="https://github.com/Shamrock-code/Shamrock/blob/main/examples/benchmarks/sph_homogeneous_bench_result.json">raw results file</a> giving particle counts, compilers and dates.</li>
+    </ul>
   </section>
 
   <footer>Measured September 2026.</footer>
