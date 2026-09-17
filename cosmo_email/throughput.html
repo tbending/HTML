@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Phantom GPU Throughput</title>
+<meta name="description" content="Particles per second for Phantom with cosmoSPHere against Shamrock and Phantom on CPU.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans+Condensed:wght@500;600&amp;family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&amp;display=swap">
+<style id="page-style">
+:root {
+  --ground: #F3F5F7;
+  --surface: #FFFFFF;
+  --ink: #14202B;
+  --muted: #5A6875;
+  --faint: #8995A1;
+  --rule: #D3DAE1;
+  --rule-soft: #E6EBEF;
+  --ours: #0E6A87;
+  --ours-soft: #D5E8EF;
+  --paper: #9A6B2F;
+  --paper-soft: #F1E6D6;
+  --base-row: #F6F8FA;
+  --sans: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  --cond: "IBM Plex Sans Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0F161C; --surface: #151F27; --ink: #E3EAF0; --muted: #9AA8B4; --faint: #6D7B87;
+    --rule: #2A3842; --rule-soft: #1F2B34;
+    --ours: #5CB8D6; --ours-soft: #173744; --paper: #D6A565; --paper-soft: #3A2C1B; --base-row: #18232C;
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #0F161C; --surface: #151F27; --ink: #E3EAF0; --muted: #9AA8B4; --faint: #6D7B87;
+  --rule: #2A3842; --rule-soft: #1F2B34;
+  --ours: #5CB8D6; --ours-soft: #173744; --paper: #D6A565; --paper-soft: #3A2C1B; --base-row: #18232C;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--ground); color: var(--ink);
+  font-family: var(--sans); font-size: 15px; line-height: 1.55;
+  margin: 0; padding-inline: 20px; padding-block: 40px 64px;
+}
+.page { max-width: 1100px; margin: 0 auto; display: grid; gap: 48px; }
+h1, h2, h3 { font-family: var(--cond); font-weight: 600; text-wrap: balance; margin: 0; letter-spacing: -0.005em; }
+h1 { font-size: 34px; line-height: 1.12; }
+h2 { font-size: 23px; }
+p { margin: 0; max-width: 70ch; }
+.eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+header, section { display: grid; gap: 14px; }
+.lede { color: var(--muted); font-size: 16px; }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+code { font-family: var(--mono); font-size: 0.92em; }
+
+.panel { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 760px; }
+th, td { text-align: left; padding: 12px 14px; vertical-align: middle; }
+thead th { font-family: var(--mono); font-weight: 500; font-size: 11px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--rule); white-space: nowrap; }
+tbody tr + tr td { border-top: 1px solid var(--rule-soft); }
+tr.base td { background: var(--base-row); }
+td small { display: block; color: var(--muted); font-size: 12.5px; line-height: 1.35; }
+.code { font-weight: 600; width: 1%; line-height: 1.3; }
+td.srccell { width: 1%; }
+.src { display: inline-block; font-family: var(--mono); font-size: 10.5px; line-height: 1.35; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 7px; border-radius: 3px; }
+.src.paper { color: var(--paper); background: var(--paper-soft); }
+.src.ours { color: var(--ours); background: var(--ours-soft); }
+td.rate { text-align: right; white-space: nowrap; font-size: 17px; }
+td.rate small { font-family: var(--mono); font-size: 11.5px; color: var(--faint); }
+td.rel { text-align: right; white-space: nowrap; }
+td.rel .base-tag { display: block; font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+
+.notes { display: grid; gap: 10px; }
+.notes p { color: var(--muted); font-size: 14px; }
+.notes b { color: var(--ink); font-weight: 500; }
+
+
+
+/* in-place editing */
+.edit-bar { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 10;
+  display: flex; gap: 8px; align-items: center; background: var(--surface); border: 1px solid var(--rule);
+  border-radius: 6px; padding: 6px; box-shadow: 0 2px 10px rgba(20, 32, 43, 0.12); font-family: var(--sans); }
+.edit-bar[hidden] { display: none !important; }
+.edit-bar button { font: 500 13px var(--sans); color: var(--ink); background: transparent; border: 1px solid var(--rule);
+  border-radius: 4px; padding: 5px 12px; cursor: pointer; }
+.edit-bar button.primary { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.edit-bar button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.edit-bar button:disabled { opacity: 0.5; cursor: default; }
+.edit-bar .msg { font-size: 12.5px; color: var(--muted); padding-inline: 6px; max-width: 32ch; }
+body.editing #doc { outline: 1px dashed var(--rule); outline-offset: 12px; }
+body.editing #doc:focus { outline: 1px dashed var(--muted); }
+
+</style>
+</head>
+<body>
+<main id="doc">
+<div class="page">
+  <header>
+    <div class="eyebrow">Sedov blast · particles advanced per second</div>
+    <h1>Phantom on GPU against Shamrock and Phantom on CPU</h1>
+    <p class="lede">Two benchmarks: the time-stepping test from the Shamrock paper, and Shamrock’s own single-GPU benchmark at 2²⁵ particles. Rows marked Shamrock are figures Shamrock published; the rest are our measurements.</p>
+  </header>
+
+  <section>
+    <h2>Shamrock paper benchmark, 1,368,000 particles</h2>
+    <p class="lede">David-Cléris, Laibe &amp; Lapeyre 2025, MNRAS 539, 1 (arXiv:2503.09713, §5.2.3). Ratios are to the fastest CPU run, Phantom on a 120-core AMD EPYC 9745.</p>
+    <div class="panel"><table>
+      <thead><tr><th>Code</th><th>Hardware</th><th>Software</th><th>Source</th><th style="text-align:right">×10⁶ particles/s</th><th style="text-align:right">vs EPYC 9745</th></tr></thead>
+      <tbody id="t1"><tr><td class="code">Phantom</td><td>AMD Epyc 7742<small>64 cores, 128 threads, Zen 2</small></td><td>Phantom e01f76c3, OpenMP<small>compiler not stated</small></td><td class="srccell"><span class="src paper">Shamrock<br>paper</span></td><td class="rate num">≳ 2</td><td class="rel num">≳ 0.44×</td></tr><tr class="base"><td class="code">Phantom</td><td>AMD EPYC 9745<small>120 cores, 120 threads, Zen 5c,&nbsp;</small></td><td>gfortran 15.2.0, OpenMP</td><td class="srccell"><span class="src ours">measured</span></td><td class="rate num">4.53<small>4.50–4.63</small></td><td class="rel num">1.00×<span class="base-tag">baseline</span></td></tr><tr><td class="code">Shamrock</td><td>NVIDIA A100-SXM4-40GB<small>DGX workstation</small></td><td>Intel oneAPI DPC++<small>-O3 -march=native, no fast-math</small></td><td class="srccell"><span class="src paper">Shamrock<br>paper</span></td><td class="rate num">~ 12</td><td class="rel num">~ 2.65×</td></tr><tr><td class="code">Phantom +<br>cosmoSPHere</td><td>NVIDIA A100-PCIe-40GB<small>16 host threads, EPYC 7702</small></td><td>gfortran 11.1.0 + CUDA 12.5 nvcc<small>OpenMP host</small></td><td class="srccell"><span class="src ours">measured</span></td><td class="rate num">13.9<small>13.2–13.9</small></td><td class="rel num">3.06×</td></tr><tr><td class="code">Phantom +<br>cosmoSPHere</td><td>AMD MI300A<small>32 host threads</small></td><td>gfortran 11.1.0 + HIPCC 7.2<small>ROCm 7.2, AMD clang 22</small></td><td class="srccell"><span class="src ours">measured</span></td><td class="rate num">19.5<small>19.0–20.1</small></td><td class="rel num">4.30×</td></tr><tr><td class="code">Phantom +<br>cosmoSPHere</td><td>NVIDIA GH200<small>32 host threads, Grace</small></td><td>gfortran 11.5.0 + CUDA 13.0 nvcc<small>OpenMP host, aarch64</small></td><td class="srccell"><span class="src ours">measured</span></td><td class="rate num">37.5<small>36.3–37.5</small></td><td class="rel num">8.28×</td></tr></tbody>
+    </table></div>
+    <div class="notes">
+      <p><b>Measured rows.</b> One export of phantom 1f683c9db with cosmoSPHere d6ca77b, built identically on every platform, 16 September 2026. The commits going into the pull requests, phantom d5b51c873 and cosmoSPHere 999fe37, give bit-identical results. Median of five rounds, range beneath. Each round differences runs of 20 and 120 steps, so the rate covers steps 21–120 and excludes start-up and I/O.</p>
+      <p><b>Protocol as in the paper.</b> Phantom’s Sedov setup in its default periodic box (npartx = 100, close-packed, 1,368,000 particles, the third point of the paper’s Fig. 17), evolved five steps to make the restart every run starts from; <code>IND_TIMESTEPS=no</code>, both CFL factors 10⁻³. The restart was made once, on the CPU, and shared by all platforms.</p>
+      <p><b>Paper figures</b> are read from the text and Fig. 17 (“≳ 2×10⁶” and “~12×10⁶”). The paper’s A100 is the SXM4 (NVLink) card; ours is the PCIe card, in a host whose other cores were busy with unrelated single-threaded jobs, so ours were bound to 16 idle cores beside the GPU. On 64 cores the EPYC 9745 gives 3.94×10⁶. Our code is likely to perform better on an A100 node with a faster link.</p>
+      <p><b>Builds</b> use <code>-O3</code> with phantom’s standard gfortran flags. Phantom’s timer start time is kept in double precision for these runs; unpatched, section timers are quantised to 1/8 s mid-month. This changes no physics.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Shamrock homogeneous benchmark, 2²⁵ particles</h2>
+    <p class="lede">Shamrock’s own GPU benchmark (<code>examples/benchmarks/sph_homogeneous_benchmark.py</code>), at the largest size it runs on one GPU. Ratio to Shamrock’s best published single-GPU result.</p>
+    <div class="panel"><table>
+      <thead><tr><th>Code</th><th>Hardware</th><th>Software</th><th>Source</th><th style="text-align:right">×10⁶ particles/s</th><th style="text-align:right">vs Shamrock H100</th></tr></thead>
+      <tbody id="t2"><tr class="base"><td class="code">Shamrock</td><td>NVIDIA H100<small>device reports 93 GiB (likely H100 NVL)</small></td><td>Intel oneAPI DPC++ 2025.0.4<small>published 21 April 2026</small></td><td class="srccell"><span class="src paper">Shamrock<br>repo</span></td><td class="rate num">25.5<small>33,848,064</small><small>particles</small></td><td class="rel num">1.00×<span class="base-tag">baseline</span></td></tr><tr><td class="code">Phantom +<br>cosmoSPHere</td><td>NVIDIA GH200 · gn003<small>32 host threads, Grace</small></td><td>gfortran 11.5.0 + CUDA 13.0 nvcc<small>OpenMP host, aarch64</small></td><td class="srccell"><span class="src ours">measured</span></td><td class="rate num">51.1<small>best step 55.0</small><small>33,561,216</small><small>particles</small></td><td class="rel num">2.00×</td></tr></tbody>
+    </table></div>
+    <div class="notes">
+      <p><b>Same physics.</b> The same Sedov blast at scale: periodic close-packed box, M4 kernel, adiabatic γ = 5/3, viscosity switch α 0–1, α<sub>u</sub> = 1, β = 2, zero background energy and a kernel-weighted injection at the centre. Shamrock caps the count at 2²⁵; phantom’s setup at npartx = 288 gives 33,561,216 particles.</p>
+      <p><b>Timing.</b> Shamrock divides N by the fastest of ten replayed steps with dt = 0. Phantom cannot replay a step, so we ran from the setup dump to nmax = 2, 3, …, 12 and differenced consecutive runs, timing each of steps 3–12, twice. The quoted rate is the median of those 20 steps; the fastest single step gives 55.0×10⁶, though phantom’s timer resolves only 10 ms of the 0.66 s step. Both CFL factors 10⁻³, so each step is one density solve and one force pass, as a replayed step is. With Shamrock’s CFL 0.1 phantom’s corrector adds a second force pass (33.4×10⁶); a dt = 0 replay can never trigger that.</p>
+      <p><b>Other published results</b> on this benchmark (Shamrock documentation): H200 NVL (AdaptiveCpp) 14.5×10⁶, Intel Data Center GPU Max 1550 (DPC++) 14.6×10⁶. Same binary as the table above, 17 September 2026; peak GPU memory 12.6 GB.</p>
+    </div>
+  </section>
+</div>
+</main>
+
+<script id="page-editor">
+// In-place editing.  A writer presses Edit, changes any text, and Save keeps the edit:
+//  - in the Claude viewer, by publishing the page as the new version (every open view
+//    reloads to it);
+//  - opened from disk (file://), by writing the page back to a file: Chrome asks where the
+//    first time (pick the same file to overwrite it) and reuses that file afterwards;
+//    browsers without that API download the page instead.
+// Anywhere else (a web server such as GitHub Pages) the page stays read-only.
+// The page's source is rebuilt from its authored parts: the head, the page style, the
+// edited #doc markup and this script - never the live document.
+(function () {
+  const DRAFT = 'page-edit-draft:' + location.pathname;
+  const doc = document.getElementById('doc');
+
+  const bar = document.createElement('div');
+  bar.className = 'edit-bar';
+  bar.hidden = true;
+  bar.innerHTML = '<span class="msg" id="edit-msg" role="status"></span>' +
+    '<button type="button" id="edit-cancel" hidden>Cancel</button>' +
+    '<button type="button" id="edit-toggle">Edit page</button>';
+  document.body.appendChild(bar);
+  const msg = bar.querySelector('#edit-msg');
+  const toggle = bar.querySelector('#edit-toggle');
+  const cancel = bar.querySelector('#edit-cancel');
+  let artifact = null, original = null, editing = false, fileHandle = null;
+  const LOCAL = location.protocol === 'file:';
+
+  function setEditable(on) {
+    // the whole page body is one editing region, so every piece of text can be changed
+    if (on) doc.setAttribute('contenteditable', 'true'); else doc.removeAttribute('contenteditable');
+    doc.querySelectorAll('[contenteditable]').forEach(el => { if (el !== doc) el.removeAttribute('contenteditable'); });
+    document.body.classList.toggle('editing', on);
+    toggle.textContent = on ? 'Save' : 'Edit page';
+    toggle.classList.toggle('primary', on);
+    cancel.hidden = !on;
+    editing = on;
+  }
+
+  function cleanMarkup() {
+    const copy = doc.cloneNode(true);
+    copy.removeAttribute('contenteditable');
+    copy.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
+    return copy.innerHTML.trim();
+  }
+
+  function source(markup) {
+    const headParts = [];
+    const title = document.querySelector('title');
+    if (title) headParts.push(title.outerHTML);
+    document.querySelectorAll('meta[name="description"], link[rel="preconnect"], link[rel="stylesheet"]')
+      .forEach(el => headParts.push(el.outerHTML));
+    const style = document.getElementById('page-style').outerHTML;
+    const script = document.getElementById('page-editor');
+    return '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n' +
+      '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n' +
+      headParts.join('\n') + '\n' + style + '\n</head>\n<body>\n<main id="doc">\n' + markup +
+      '\n</main>\n\n<script id="page-editor">' + script.textContent + '<\/script>\n</body>\n</html>\n';
+  }
+
+  async function saveLocal(markup) {
+    const html = source(markup);
+    const name = decodeURIComponent(location.pathname.split('/').pop() || 'page.html');
+    if (window.showSaveFilePicker) {
+      if (!fileHandle) {
+        fileHandle = await window.showSaveFilePicker({
+          suggestedName: name,
+          types: [{ description: 'HTML page', accept: { 'text/html': ['.html'] } }] });
+      }
+      const w = await fileHandle.createWritable();
+      await w.write(html); await w.close();
+      return 'Saved to ' + fileHandle.name + '.';
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+    a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    return 'Downloaded ' + name + '; replace the original with it.';
+  }
+
+  async function save() {
+    const markup = cleanMarkup();
+    if (markup === original) { setEditable(false); msg.textContent = 'No changes.'; return; }
+    if (LOCAL) {
+      toggle.disabled = true; cancel.disabled = true; msg.textContent = 'Saving…';
+      try {
+        const done = await saveLocal(markup);
+        original = markup; setEditable(false); msg.textContent = done;
+        try { sessionStorage.removeItem(DRAFT); } catch (e) {}
+      } catch (err) {
+        msg.textContent = (err && err.name === 'AbortError')
+          ? 'Not saved. Press Save to choose a file.' : 'Saving failed: ' + (err && err.message || err);
+      }
+      toggle.disabled = false; cancel.disabled = false;
+      return;
+    }
+    toggle.disabled = true; cancel.disabled = true;
+    msg.textContent = 'Saving…';
+    try { sessionStorage.setItem(DRAFT, markup); } catch (e) {}
+    try {
+      await artifact.publish(source(markup));
+      try { sessionStorage.removeItem(DRAFT); } catch (e) {}
+      msg.textContent = 'Saved. Reloading…';
+    } catch (err) {
+      toggle.disabled = false; cancel.disabled = false;
+      const code = err && err.code;
+      if (code === 'conflict') {
+        msg.textContent = 'Someone saved a newer version; loading it. Your edit is kept for this tab.';
+      } else if (code === 'not_writer' || code === 'not_granted' || code === 'not_declared' ||
+                 code === 'consent_required' || code === 'capability_disabled' || code === 'capability_removed') {
+        setEditable(false); bar.hidden = true;
+        try { sessionStorage.removeItem(DRAFT); } catch (e) {}
+      } else if (code === 'rate_limited') {
+        msg.textContent = 'Saving too often. Wait a moment, then press Save again.';
+      } else if (code === 'too_large' || code === 'invalid_content') {
+        msg.textContent = 'This edit could not be saved (' + code + '). Cancel to discard it.';
+      } else {
+        msg.textContent = 'Saving failed. Press Save to try again.';
+      }
+    }
+  }
+
+  toggle.addEventListener('click', () => {
+    if (!editing) { original = cleanMarkup(); msg.textContent = ''; setEditable(true); }
+    else save();
+  });
+  cancel.addEventListener('click', () => {
+    doc.innerHTML = original; setEditable(false); msg.textContent = '';
+    try { sessionStorage.removeItem(DRAFT); } catch (e) {}
+  });
+
+  (async () => {
+    if (LOCAL) { bar.hidden = false; restoreDraft(); return; }
+    // the viewer injects window.claude; on any other web server the page stays read-only
+    for (let i = 0; i < 50 && !(window.claude && typeof window.claude.use === 'function'); i++)
+      await new Promise(r => setTimeout(r, 100));
+    const claude = window.claude;
+    if (!claude || typeof claude.use !== 'function') return;
+    artifact = await claude.use('artifact');
+    if (!artifact) return;
+    bar.hidden = false;
+    restoreDraft();
+  })();
+
+  function restoreDraft() {
+    let draft = null;
+    try { draft = sessionStorage.getItem(DRAFT); } catch (e) {}
+    if (draft && draft !== cleanMarkup()) {
+      original = cleanMarkup();
+      doc.innerHTML = draft;
+      setEditable(true);
+      msg.textContent = 'Your unsaved edit was restored.';
+    }
+  }
+})();
+
+</script>
+</body>
+</html>

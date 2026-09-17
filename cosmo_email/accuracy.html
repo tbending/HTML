@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Phantom GPU Accuracy</title>
+<meta name="description" content="Which Phantom examples run on the GPU path and how closely they agree with Phantom on CPU.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style id="page-style">
+:root {
+  --ground: #F3F5F7;
+  --surface: #FFFFFF;
+  --ink: #14202B;
+  --muted: #5A6875;
+  --faint: #8995A1;
+  --rule: #D3DAE1;
+  --rule-soft: #E6EBEF;
+  --accent: #0E6A87;
+  --good: #2E7D4F;
+  --good-soft: #DDEFE3;
+  --watch: #9A6B14;
+  --watch-soft: #F4E9D2;
+  --off: #6B7680;
+  --off-soft: #E5E9ED;
+  --sans: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  --cond: "IBM Plex Sans Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0F161C; --surface: #151F27; --ink: #E3EAF0; --muted: #9AA8B4; --faint: #6D7B87;
+    --rule: #2A3842; --rule-soft: #1F2B34; --accent: #5CB8D6;
+    --good: #7CCB9A; --good-soft: #1B3326; --watch: #E2B35C; --watch-soft: #3A2E17; --off: #9AA5AF; --off-soft: #232E37;
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #0F161C; --surface: #151F27; --ink: #E3EAF0; --muted: #9AA8B4; --faint: #6D7B87;
+  --rule: #2A3842; --rule-soft: #1F2B34; --accent: #5CB8D6;
+  --good: #7CCB9A; --good-soft: #1B3326; --watch: #E2B35C; --watch-soft: #3A2E17; --off: #9AA5AF; --off-soft: #232E37;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--ground); color: var(--ink);
+  font-family: var(--sans); font-size: 15px; line-height: 1.55;
+  margin: 0; padding-inline: 20px; padding-block: 40px 64px;
+}
+.page { max-width: 1000px; margin: 0 auto; display: grid; gap: 52px; }
+h1, h2, h3 { font-family: var(--cond); font-weight: 600; text-wrap: balance; margin: 0; letter-spacing: -0.005em; }
+h1 { font-size: 34px; line-height: 1.12; }
+h2 { font-size: 24px; }
+h3 { font-size: 17px; }
+p { margin: 0; max-width: 68ch; }
+.eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+header, section { display: grid; gap: 16px; }
+#groups { gap: 44px; }
+.group { display: grid; gap: 14px; }
+.lede { color: var(--muted); font-size: 16px; }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+code { font-family: var(--mono); font-size: 0.9em; }
+a { color: var(--accent); }
+
+.tally { display: flex; flex-wrap: wrap; gap: 10px 28px; padding-top: 6px; }
+.tally div { display: grid; gap: 0; }
+.tally b { font-family: var(--cond); font-size: 30px; font-weight: 600; line-height: 1.1; }
+.tally span { font-size: 13px; color: var(--muted); }
+
+.measures { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.measure { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 16px 18px; display: grid; gap: 6px; align-content: start; }
+.measure .name { font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--accent); }
+.measure p { font-size: 14px; color: var(--muted); }
+.measure p b { color: var(--ink); font-weight: 500; }
+
+.group-head { display: grid; gap: 6px; }
+.group-head p { color: var(--muted); }
+.chip { display: inline-block; font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 8px; border-radius: 3px; vertical-align: 3px; margin-left: 8px; white-space: nowrap; }
+.chip.good { color: var(--good); background: var(--good-soft); }
+.chip.watch { color: var(--watch); background: var(--watch-soft); }
+.chip.off { color: var(--off); background: var(--off-soft); }
+
+.panel { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 560px; }
+th, td { text-align: left; padding: 10px 14px; vertical-align: top; }
+thead th { font-family: var(--mono); font-weight: 500; font-size: 11px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--rule); white-space: nowrap; }
+tbody tr + tr td { border-top: 1px solid var(--rule-soft); }
+tbody tr.noterow td { border-top: 0; padding-top: 0; }
+td.note { max-width: 70ch; }
+td.ex { font-family: var(--mono); font-weight: 500; white-space: nowrap; width: 1%; }
+td.r { text-align: right; white-space: nowrap; }
+td.note { color: var(--muted); font-size: 13.5px; }
+td.dim { color: var(--faint); }
+
+.cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.card { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 16px 18px; display: grid; gap: 6px; align-content: start; }
+.card p { font-size: 14px; color: var(--muted); }
+.card .fig { font-family: var(--mono); font-size: 13px; color: var(--ink); }
+
+ul.plain { margin: 0; padding-left: 18px; display: grid; gap: 8px; max-width: 72ch; }
+ul.plain li { color: var(--muted); }
+ul.plain b { color: var(--ink); font-weight: 500; }
+
+@media (max-width: 760px) {
+  h1 { font-size: 28px; }
+  .measures, .cards { grid-template-columns: 1fr; }
+}
+
+
+
+/* in-place editing */
+.edit-bar { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 10;
+  display: flex; gap: 8px; align-items: center; background: var(--surface); border: 1px solid var(--rule);
+  border-radius: 6px; padding: 6px; box-shadow: 0 2px 10px rgba(20, 32, 43, 0.12); font-family: var(--sans); }
+.edit-bar[hidden] { display: none !important; }
+.edit-bar button { font: 500 13px var(--sans); color: var(--ink); background: transparent; border: 1px solid var(--rule);
+  border-radius: 4px; padding: 5px 12px; cursor: pointer; }
+.edit-bar button.primary { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.edit-bar button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.edit-bar button:disabled { opacity: 0.5; cursor: default; }
+.edit-bar .msg { font-size: 12.5px; color: var(--muted); padding-inline: 6px; max-width: 32ch; }
+body.editing #doc { outline: 1px dashed var(--rule); outline-offset: 12px; }
+body.editing #doc:focus { outline: 1px dashed var(--muted); }
+
+</style>
+</head>
+<body>
+<main id="doc">
+<div class="page">
+  <header>
+    <div class="eyebrow">Phantom + cosmoSPHere · GPU path against Phantom on CPU</div>
+    <h1>Which Phantom examples run on the GPU, and how closely they agree</h1>
+    <p class="lede">Phantom’s build system defines 136 setups. Leaving out those that need physics the GPU path does not yet have (MHD, dust, radiation, self-gravity, general relativity, adaptive particle refinement), the test bundles and the obsolete ones leaves 36. Each of those was built for the GPU and run twice from the same starting point: once on the GPU path, once on Phantom’s normal CPU path, from the same binary. This page groups the results by how well the two agree, and lists the targeted tests behind the new features.</p>
+    <div class="tally" id="tally"><div><b class="num">36</b><span>setups without MHD, dust, radiation or self-gravity</span></div><div><b class="num">30</b><span>run on the GPU</span></div><div><b class="num">16</b><span>agree with the CPU to rounding</span></div><div><b class="num">6</b><span>refused or not runnable</span></div></div>
+  </header>
+
+  <section>
+    <h2>How agreement is measured</h2>
+    <div class="measures">
+      <div class="measure">
+        <div class="name">One step</div>
+        <p>Take a single step from the same state on both paths. How differently do the particles’ velocities change, as a fraction of how much they change? <b>10⁻⁹ means agreement to nine digits.</b> About 10⁻⁸ is as close as the density solve’s own tolerance allows.</p>
+      </div>
+      <div class="measure">
+        <div class="name">Energy drift</div>
+        <p>Over 200 steps, how much does total energy drift on the GPU compared with the CPU? <b>1.00 means the same drift.</b></p>
+      </div>
+      <div class="measure">
+        <div class="name">Divergence, R</div>
+        <p>Over 200 steps, how far do GPU and CPU drift apart, compared with two CPU runs that differ by a tiny change in settings? <b>Around 1 means the GPU is no further from the CPU than the CPU is from itself.</b> Chaotic problems amplify rounding, so larger values need a closer look rather than meaning an error.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="groups"><div class="group"><div class="group-head"><h2>Agree to rounding<span class="chip good">matches CPU</span></h2><p>One step agrees to between seven and fourteen digits, energy drifts identically, and GPU and CPU stay as close as the CPU does to itself.</p></div><div class="panel"><table><thead><tr><th>Example</th><th style="text-align:right">Particles</th><th style="text-align:right">One step</th><th style="text-align:right">Energy drift</th><th style="text-align:right">R</th></tr></thead><tbody><tr class="has-note"><td class="ex">sedov</td><td class="r num">174,000</td><td class="r num">1.1×10⁻⁸</td><td class="r num">1.00</td><td class="r num">0.01</td></tr><tr class="noterow"><td></td><td class="note" colspan="4">with h converged to 10⁻⁸: kinetic energy agrees to 1.5×10⁻¹⁰ after 159 steps. At the example’s own tolerance of 10⁻⁴, R is 3.85, because the two paths stop the h iteration at slightly different points.</td></tr><tr><td class="ex">disc</td><td class="r num">1,000,000</td><td class="r num">6.4×10⁻¹⁰</td><td class="r num">1.00</td><td class="r num">0.94</td></tr><tr class="has-note"><td class="ex">adiabaticdisc</td><td class="r num">1,000,000</td><td class="r num">5.2×10⁻¹⁰</td><td class="r num">1.00</td><td class="r num">0.20</td></tr><tr class="noterow"><td></td><td class="note" colspan="4">needed cooling on the GPU (was 0.80 in du/dt)</td></tr><tr class="has-note"><td class="ex">grdisc</td><td class="r num">1,000,000</td><td class="r num">5.0×10⁻¹⁰</td><td class="r num">1.00</td><td class="r num">1.04</td></tr><tr class="noterow"><td></td><td class="note" colspan="4">needed the heating switches (was 3×10⁻⁴)</td></tr><tr><td class="ex">binarydiscMFlow</td><td class="r num">1,000,000</td><td class="r num">6.4×10⁻¹⁰</td><td class="r num">1.00</td><td class="r num">0.94</td></tr><tr><td class="ex">boilingplanets</td><td class="r num">1,000,000</td><td class="r num">6.4×10⁻¹⁰</td><td class="r num">1.00</td><td class="r num">0.94</td></tr><tr><td class="ex">planetatm</td><td class="r num">1,000,000</td><td class="r num">6.4×10⁻¹⁰</td><td class="r num">1.00</td><td class="r num">0.94</td></tr><tr><td class="ex">randomwind</td><td class="r num">1,000,000</td><td class="r num">6.5×10⁻¹⁰</td><td class="r num">1.00</td><td class="r num">0.95</td></tr><tr><td class="ex">planetdisc</td><td class="r num">5,092,419</td><td class="r num">4.2×10⁻⁹</td><td class="r num">1.00</td><td class="r num">0.42</td></tr><tr class="has-note"><td class="ex">gwdisc</td><td class="r num">5,200,000</td><td class="r num">7.3×10⁻⁹</td><td class="r num">1.00</td><td class="r num"><span class="dim">—</span></td></tr><tr class="noterow"><td></td><td class="note" colspan="4">132 steps; reference runs did not separate</td></tr><tr class="has-note"><td class="ex">nshwdisc</td><td class="r num">100,000</td><td class="r num">2.9×10⁻¹⁰</td><td class="r num"><span class="dim">—</span></td><td class="r num"><span class="dim">—</span></td></tr><tr class="noterow"><td></td><td class="note" colspan="4">10 steps</td></tr><tr><td class="ex">turbdrive</td><td class="r num">262,144</td><td class="r num">2.8×10⁻⁹</td><td class="r num">1.00</td><td class="r num">0.64</td></tr><tr><td class="ex">BHL</td><td class="r num"><span class="dim">—</span></td><td class="r num"><span class="dim">—</span></td><td class="r num">1.00</td><td class="r num">0.75</td></tr><tr><td class="ex">tokamak</td><td class="r num">41,621</td><td class="r num">2.6×10⁻⁸</td><td class="r num">1.00</td><td class="r num">1.51</td></tr><tr class="has-note"><td class="ex">prtest</td><td class="r num">89</td><td class="r num">5.9×10⁻¹⁴</td><td class="r num">1.00</td><td class="r num"><span class="dim">—</span></td></tr><tr class="noterow"><td></td><td class="note" colspan="4">10 steps</td></tr><tr><td class="ex">masstransfer</td><td class="r num"><span class="dim">—</span></td><td class="r num"><span class="dim">—</span></td><td class="r num">1.00</td><td class="r num"><span class="dim">—</span></td></tr></tbody></table></div></div><div class="group"><div class="group-head"><h2>Agree step by step, drift apart more than expected<span class="chip watch">closer look</span></h2><p>Single steps agree to seven or eight digits and energy drifts identically, but over 200 steps GPU and CPU separate more than the CPU reference pair does. Sedov showed the same pattern until its long runs were repeated with the smoothing-length tolerance tightened from 10⁻⁴ to 10⁻⁸: the separation then fell 400-fold, so it came from where each path stops iterating h, not from the GPU. The same check is under way for these examples.</p></div><div class="panel"><table><thead><tr><th>Example</th><th style="text-align:right">Particles</th><th style="text-align:right">One step</th><th style="text-align:right">Energy drift</th><th style="text-align:right">R</th></tr></thead><tbody><tr><td class="ex">sphereinbox</td><td class="r num">1,528,951</td><td class="r num">2.3×10⁻⁸</td><td class="r num">1.00</td><td class="r num">2.92</td></tr><tr><td class="ex">kh</td><td class="r num">113,664</td><td class="r num">1.6×10⁻⁶</td><td class="r num">1.00</td><td class="r num">3.46</td></tr><tr><td class="ex">bondi</td><td class="r num">13,124</td><td class="r num">1.7×10⁻⁸</td><td class="r num">1.00</td><td class="r num">7.08</td></tr><tr><td class="ex">neutronstar</td><td class="r num">103,806</td><td class="r num">8.2×10⁻⁸</td><td class="r num">1.00</td><td class="r num">7.85</td></tr><tr class="has-note"><td class="ex">localdisk</td><td class="r num">500,000</td><td class="r num">1.6×10⁻⁸</td><td class="r num">1.00</td><td class="r num">9.93</td></tr><tr class="noterow"><td></td><td class="note" colspan="4">128 steps</td></tr><tr><td class="ex">turb</td><td class="r num">262,144</td><td class="r num">2.8×10⁻⁹</td><td class="r num">1.00</td><td class="r num">10.04</td></tr><tr class="has-note"><td class="ex">firehose</td><td class="r num"><span class="dim">—</span></td><td class="r num"><span class="dim">—</span></td><td class="r num">1.00</td><td class="r num">10.35</td></tr><tr class="noterow"><td></td><td class="note" colspan="4">20 steps</td></tr><tr><td class="ex">exoALMA</td><td class="r num">1,000,000</td><td class="r num">6.4×10⁻¹⁰</td><td class="r num">1.00</td><td class="r num">47.95</td></tr></tbody></table></div></div><div class="group"><div class="group-head"><h2>Limited by precision, not by the GPU<span class="chip watch">precision</span></h2><p>On a perfectly regular lattice (taylorgreen, wave) the forces on each particle almost cancel, so tiny rounding differences dominate. Phantom’s CPU path stores one factor in the force sum in single precision; the GPU keeps it in double, so the difference reflects the CPU’s precision. blob is a single-precision build, which limits the one-step comparison; over 200 steps it agrees well.</p></div><div class="panel"><table><thead><tr><th>Example</th><th style="text-align:right">Particles</th><th style="text-align:right">One step</th><th style="text-align:right">Energy drift</th><th style="text-align:right">R</th></tr></thead><tbody><tr class="has-note"><td class="ex">blob</td><td class="r num">354,678</td><td class="r num">9.8×10⁻⁴</td><td class="r num">1.02</td><td class="r num">1.99</td></tr><tr class="noterow"><td></td><td class="note" colspan="4">single-precision build, so one step is limited to its h tolerance of 10⁻⁶</td></tr><tr><td class="ex">taylorgreen</td><td class="r num">454,656</td><td class="r num">2.0×10⁻³</td><td class="r num">1.00</td><td class="r num">38.10</td></tr><tr><td class="ex">wave</td><td class="r num">9,216</td><td class="r num">9.8×10⁻⁴</td><td class="r num"><span class="dim">—</span></td><td class="r num">13,194</td></tr></tbody></table></div></div><div class="group"><div class="group-head"><h2>Ran, but these measures do not apply<span class="chip off">not comparable</span></h2></div><div class="panel"><table><thead><tr><th>Example</th><th>What happened</th></tr></thead><tbody><tr><td class="ex">torus</td><td class="note">Phantom’s default torus has no central star and simply expands, so energy comparisons are noise. The torus with a star, used for the regression checks, agrees to 1.6×10⁻⁴ over 1050 steps.</td></tr><tr><td class="ex">hierarchical</td><td class="note">sink particles only; no gas to compare over 10 steps</td></tr><tr><td class="ex">qpe</td><td class="note">10 steps; no gas measures</td></tr></tbody></table></div></div><div class="group"><div class="group-head"><h2>Not run on the GPU<span class="chip off">not supported</span></h2></div><div class="panel"><table><thead><tr><th>Example</th><th>What happened</th></tr></thead><tbody><tr><td class="ex">shock</td><td class="note">refused: boundary particles</td></tr><tr><td class="ex">isowind</td><td class="note">refused: boundary particles</td></tr><tr><td class="ex">h2region</td><td class="note">refused: HII regions need Phantom’s kd-tree</td></tr><tr><td class="ex">galcen</td><td class="note">setup needs external data files</td></tr><tr><td class="ex">starcluster</td><td class="note">setup needs external data files</td></tr><tr><td class="ex">asteroidwind</td><td class="note">fails on the CPU path too with global timesteps</td></tr></tbody></table></div></div></section>
+
+  <section>
+    <div class="group-head">
+      <h2>Targeted tests</h2>
+      <p>Tests written for specific features, beyond running the examples.</p>
+    </div>
+    <div class="cards">
+      <div class="card">
+        <h3>Periodic boundaries</h3>
+        <p>A small periodic Sedov blast run past the point where the shock wraps through the box faces, GPU against CPU. Particles near the faces agree as well as those in the middle.</p>
+        <div class="fig">energy agreement 2.1×10⁻⁹ · 148 particles crossed the boundary</div>
+      </div>
+      <div class="card">
+        <h3>Quintic kernel</h3>
+        <p>Sedov and a torus built with the M6 quintic spline, GPU against CPU. The same agreement as the cubic kernel; cubic results are unchanged bit for bit.</p>
+        <div class="fig">Sedov energy 9.5×10⁻⁹ · torus kinetic energy 2.3×10⁻⁹ at t = 1</div>
+      </div>
+      <div class="card">
+        <h3>A particle that neighbours everything</h3>
+        <p>A torus in which one extra particle is switched on far from the rest, so its smoothing length grows until every other particle is its neighbour. The GPU path does the full sum without truncating it; the step is slower, because the octree’s smallest cells fill up.</p>
+      </div>
+      <div class="card">
+        <h3>Regression checks for every change</h3>
+        <p>Each change was checked against the one before on a Sedov blast (174,000 particles, 172 steps) and a torus (52,805 particles, 1050 steps). Changes meant to be exact were bit-identical; the speed-ups changed results only at the rounding level, with agreement against the CPU unchanged.</p>
+        <div class="fig">Sedov energy 8.5×10⁻⁹ · torus energy 1.6×10⁻⁴ over 1050 steps</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="group-head">
+      <h2>Open questions</h2>
+    </div>
+    <ul class="plain">
+      <li><b>Larger divergence in some examples.</b> exoALMA (R ≈ 48), and bondi, firehose, localdisk, neutronstar and turb (R ≈ 7–10), agree closely step by step but drift apart more than the CPU reference over 200 steps. For Sedov this turned out to be the smoothing-length tolerance; the same check is running for these.</li>
+      <li><b>Boundary particles</b> (the shock tube, isowind) are refused rather than supported. Supporting them needs the GPU to hold fixed particles apart from evolving ones.</li>
+      <li><b>HII regions</b> (h2region) need Phantom’s kd-tree, which the GPU path replaces.</li>
+      <li><b>Which code:</b> the examples ran on the periodic-boundary code, with cooling and the heating switches added for adiabaticdisc, grdisc and blob. The later speed-ups were checked on Sedov, torus, periodic Sedov and both discs, and change results only at the rounding level.</li>
+    </ul>
+  </section>
+</div>
+</main>
+
+<script id="page-editor">
+// In-place editing.  A writer presses Edit, changes any text, and Save keeps the edit:
+//  - in the Claude viewer, by publishing the page as the new version (every open view
+//    reloads to it);
+//  - opened from disk (file://), by writing the page back to a file: Chrome asks where the
+//    first time (pick the same file to overwrite it) and reuses that file afterwards;
+//    browsers without that API download the page instead.
+// Anywhere else (a web server such as GitHub Pages) the page stays read-only.
+// The page's source is rebuilt from its authored parts: the head, the page style, the
+// edited #doc markup and this script - never the live document.
+(function () {
+  const DRAFT = 'page-edit-draft:' + location.pathname;
+  const doc = document.getElementById('doc');
+
+  const bar = document.createElement('div');
+  bar.className = 'edit-bar';
+  bar.hidden = true;
+  bar.innerHTML = '<span class="msg" id="edit-msg" role="status"></span>' +
+    '<button type="button" id="edit-cancel" hidden>Cancel</button>' +
+    '<button type="button" id="edit-toggle">Edit page</button>';
+  document.body.appendChild(bar);
+  const msg = bar.querySelector('#edit-msg');
+  const toggle = bar.querySelector('#edit-toggle');
+  const cancel = bar.querySelector('#edit-cancel');
+  let artifact = null, original = null, editing = false, fileHandle = null;
+  const LOCAL = location.protocol === 'file:';
+
+  function setEditable(on) {
+    // the whole page body is one editing region, so every piece of text can be changed
+    if (on) doc.setAttribute('contenteditable', 'true'); else doc.removeAttribute('contenteditable');
+    doc.querySelectorAll('[contenteditable]').forEach(el => { if (el !== doc) el.removeAttribute('contenteditable'); });
+    document.body.classList.toggle('editing', on);
+    toggle.textContent = on ? 'Save' : 'Edit page';
+    toggle.classList.toggle('primary', on);
+    cancel.hidden = !on;
+    editing = on;
+  }
+
+  function cleanMarkup() {
+    const copy = doc.cloneNode(true);
+    copy.removeAttribute('contenteditable');
+    copy.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
+    return copy.innerHTML.trim();
+  }
+
+  function source(markup) {
+    const headParts = [];
+    const title = document.querySelector('title');
+    if (title) headParts.push(title.outerHTML);
+    document.querySelectorAll('meta[name="description"], link[rel="preconnect"], link[rel="stylesheet"]')
+      .forEach(el => headParts.push(el.outerHTML));
+    const style = document.getElementById('page-style').outerHTML;
+    const script = document.getElementById('page-editor');
+    return '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n' +
+      '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n' +
+      headParts.join('\n') + '\n' + style + '\n</head>\n<body>\n<main id="doc">\n' + markup +
+      '\n</main>\n\n<script id="page-editor">' + script.textContent + '<\/script>\n</body>\n</html>\n';
+  }
+
+  async function saveLocal(markup) {
+    const html = source(markup);
+    const name = decodeURIComponent(location.pathname.split('/').pop() || 'page.html');
+    if (window.showSaveFilePicker) {
+      if (!fileHandle) {
+        fileHandle = await window.showSaveFilePicker({
+          suggestedName: name,
+          types: [{ description: 'HTML page', accept: { 'text/html': ['.html'] } }] });
+      }
+      const w = await fileHandle.createWritable();
+      await w.write(html); await w.close();
+      return 'Saved to ' + fileHandle.name + '.';
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+    a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    return 'Downloaded ' + name + '; replace the original with it.';
+  }
+
+  async function save() {
+    const markup = cleanMarkup();
+    if (markup === original) { setEditable(false); msg.textContent = 'No changes.'; return; }
+    if (LOCAL) {
+      toggle.disabled = true; cancel.disabled = true; msg.textContent = 'Saving…';
+      try {
+        const done = await saveLocal(markup);
+        original = markup; setEditable(false); msg.textContent = done;
+        try { sessionStorage.removeItem(DRAFT); } catch (e) {}
+      } catch (err) {
+        msg.textContent = (err && err.name === 'AbortError')
+          ? 'Not saved. Press Save to choose a file.' : 'Saving failed: ' + (err && err.message || err);
+      }
+      toggle.disabled = false; cancel.disabled = false;
+      return;
+    }
+    toggle.disabled = true; cancel.disabled = true;
+    msg.textContent = 'Saving…';
+    try { sessionStorage.setItem(DRAFT, markup); } catch (e) {}
+    try {
+      await artifact.publish(source(markup));
+      try { sessionStorage.removeItem(DRAFT); } catch (e) {}
+      msg.textContent = 'Saved. Reloading…';
+    } catch (err) {
+      toggle.disabled = false; cancel.disabled = false;
+      const code = err && err.code;
+      if (code === 'conflict') {
+        msg.textContent = 'Someone saved a newer version; loading it. Your edit is kept for this tab.';
+      } else if (code === 'not_writer' || code === 'not_granted' || code === 'not_declared' ||
+                 code === 'consent_required' || code === 'capability_disabled' || code === 'capability_removed') {
+        setEditable(false); bar.hidden = true;
+        try { sessionStorage.removeItem(DRAFT); } catch (e) {}
+      } else if (code === 'rate_limited') {
+        msg.textContent = 'Saving too often. Wait a moment, then press Save again.';
+      } else if (code === 'too_large' || code === 'invalid_content') {
+        msg.textContent = 'This edit could not be saved (' + code + '). Cancel to discard it.';
+      } else {
+        msg.textContent = 'Saving failed. Press Save to try again.';
+      }
+    }
+  }
+
+  toggle.addEventListener('click', () => {
+    if (!editing) { original = cleanMarkup(); msg.textContent = ''; setEditable(true); }
+    else save();
+  });
+  cancel.addEventListener('click', () => {
+    doc.innerHTML = original; setEditable(false); msg.textContent = '';
+    try { sessionStorage.removeItem(DRAFT); } catch (e) {}
+  });
+
+  (async () => {
+    if (LOCAL) { bar.hidden = false; restoreDraft(); return; }
+    // the viewer injects window.claude; on any other web server the page stays read-only
+    for (let i = 0; i < 50 && !(window.claude && typeof window.claude.use === 'function'); i++)
+      await new Promise(r => setTimeout(r, 100));
+    const claude = window.claude;
+    if (!claude || typeof claude.use !== 'function') return;
+    artifact = await claude.use('artifact');
+    if (!artifact) return;
+    bar.hidden = false;
+    restoreDraft();
+  })();
+
+  function restoreDraft() {
+    let draft = null;
+    try { draft = sessionStorage.getItem(DRAFT); } catch (e) {}
+    if (draft && draft !== cleanMarkup()) {
+      original = cleanMarkup();
+      doc.innerHTML = draft;
+      setEditable(true);
+      msg.textContent = 'Your unsaved edit was restored.';
+    }
+  }
+})();
+
+</script>
+</body>
+</html>

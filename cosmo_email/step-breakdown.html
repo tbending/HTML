@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Sedov 1.4M: Phantom GPU against Shamrock</title>
+<meta name="description" content="Per-step timing breakdown for the Shamrock-paper Sedov benchmark.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans+Condensed:wght@500;600&amp;family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&amp;display=swap">
+<style id="page-style">
+:root {
+  --ground: #F3F5F7;
+  --surface: #FFFFFF;
+  --ink: #14202B;
+  --muted: #5A6875;
+  --faint: #8995A1;
+  --rule: #D3DAE1;
+  --rule-soft: #E6EBEF;
+  --ours: #0E6A87;
+  --ours-soft: #D5E8EF;
+  --paper: #9A6B2F;
+  --paper-soft: #F1E6D6;
+  --pending: #B26A12;
+  --c-tree: #6F8A3A;
+  --c-lists: #A9C26A;
+  --c-dens: #3C8FB3;
+  --c-force: #0E5670;
+  --c-xfer: #A0668F;
+  --c-host: #D29A38;
+  --c-c2p: #E7CD8C;
+  --c-other: #AAB4BE;
+  --sans: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  --cond: "IBM Plex Sans Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0F161C; --surface: #151F27; --ink: #E3EAF0; --muted: #9AA8B4; --faint: #6D7B87;
+    --rule: #2A3842; --rule-soft: #1F2B34;
+    --ours: #5CB8D6; --ours-soft: #173744; --paper: #D6A565; --paper-soft: #3A2C1B; --pending: #E7A04A;
+    --c-tree: #9DB865; --c-lists: #CFE09A; --c-dens: #5FB0D2; --c-force: #2F86A6;
+    --c-xfer: #C88DB6; --c-host: #E6B25A; --c-c2p: #F0DDA8; --c-other: #6E7B86;
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #0F161C; --surface: #151F27; --ink: #E3EAF0; --muted: #9AA8B4; --faint: #6D7B87;
+  --rule: #2A3842; --rule-soft: #1F2B34;
+  --ours: #5CB8D6; --ours-soft: #173744; --paper: #D6A565; --paper-soft: #3A2C1B; --pending: #E7A04A;
+  --c-tree: #9DB865; --c-lists: #CFE09A; --c-dens: #5FB0D2; --c-force: #2F86A6;
+  --c-xfer: #C88DB6; --c-host: #E6B25A; --c-c2p: #F0DDA8; --c-other: #6E7B86;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--ground); color: var(--ink);
+  font-family: var(--sans); font-size: 15px; line-height: 1.55;
+  margin: 0; padding-inline: 20px; padding-block: 40px 64px;
+}
+.page { max-width: 1040px; margin: 0 auto; display: grid; gap: 44px; }
+h1, h2, h3 { font-family: var(--cond); font-weight: 600; text-wrap: balance; margin: 0; letter-spacing: -0.005em; }
+h1 { font-size: 34px; line-height: 1.12; }
+h2 { font-size: 23px; }
+h3 { font-size: 17px; }
+p { margin: 0; max-width: 68ch; }
+.eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+a { color: var(--ours); }
+a:focus-visible { outline: 2px solid var(--ours); outline-offset: 2px; }
+
+header { display: grid; gap: 14px; }
+.lede { color: var(--muted); font-size: 16px; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 22px; font-family: var(--mono); font-size: 12.5px; color: var(--muted); padding-top: 4px; }
+.meta b { color: var(--ink); font-weight: 500; }
+
+section { display: grid; gap: 16px; }
+.section-head { display: grid; gap: 6px; }
+.section-head p { color: var(--muted); }
+
+.panel { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; }
+.scroll { overflow-x: auto; }
+
+.axis { position: relative; height: 18px; font-family: var(--mono); font-size: 10.5px; color: var(--faint); }
+.axis span { position: absolute; transform: translateX(-50%); }
+.axis span:first-child { transform: none; }
+
+/* stacked breakdown */
+.stack-wrap { padding: 20px 20px 16px; display: grid; gap: 14px; }
+.stack-row { display: grid; grid-template-columns: 170px 1fr 70px; gap: 14px; align-items: center; }
+.stack-row .lab { font-weight: 600; font-size: 14px; line-height: 1.25; }
+.stack-row .lab small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
+.stack { display: flex; height: 26px; }
+.stack .seg { height: 100%; min-width: 0; border-right: 1px solid var(--surface); }
+.stack .seg:last-child { border-right: 0; }
+.stack-row .tot { text-align: right; font-size: 13px; }
+.stack-row.pending .stack { border: 1px dashed var(--pending); height: 26px; align-items: center; padding-inline: 10px; font-size: 12.5px; color: var(--pending); }
+.stack-axis { display: grid; grid-template-columns: 170px 1fr 70px; gap: 14px; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; color: var(--muted); padding-top: 4px; border-top: 1px solid var(--rule-soft); padding-block: 12px 0; }
+.legend i { display: inline-block; width: 11px; height: 11px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+
+/* timing trees */
+.trees { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.tree { padding: 16px 18px 14px; display: grid; gap: 10px; align-content: start; }
+.tree header { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.tree header .r { font-family: var(--mono); font-size: 12.5px; color: var(--muted); }
+.tree pre { margin: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.6; overflow-x: auto; }
+.tree .t-row { display: flex; gap: 12px; }
+.tree .t-name { flex: 1; white-space: pre; color: var(--ink); }
+.tree .t-g { color: var(--faint); }
+.tree .t-ms { width: 7ch; text-align: right; }
+.tree .t-pct { width: 6ch; text-align: right; color: var(--faint); }
+.tree .sw { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; vertical-align: 0; }
+.tree .note { font-size: 12.5px; color: var(--muted); }
+.tree.pending pre { color: var(--pending); }
+
+/* notes */
+.notes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 36px; }
+.note h3 { margin-bottom: 4px; }
+.note p { color: var(--muted); font-size: 14px; }
+
+@media (max-width: 760px) {
+  h1 { font-size: 28px; }
+  .trees, .notes { grid-template-columns: 1fr; }
+  .stack-row, .stack-axis { grid-template-columns: 1fr; gap: 6px; }
+  .stack-row .tot { text-align: left; }
+  .stack-axis > :first-child, .stack-axis > :last-child { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+
+
+/* in-place editing */
+.edit-bar { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 10;
+  display: flex; gap: 8px; align-items: center; background: var(--surface); border: 1px solid var(--rule);
+  border-radius: 6px; padding: 6px; box-shadow: 0 2px 10px rgba(20, 32, 43, 0.12); font-family: var(--sans); }
+.edit-bar[hidden] { display: none !important; }
+.edit-bar button { font: 500 13px var(--sans); color: var(--ink); background: transparent; border: 1px solid var(--rule);
+  border-radius: 4px; padding: 5px 12px; cursor: pointer; }
+.edit-bar button.primary { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.edit-bar button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.edit-bar button:disabled { opacity: 0.5; cursor: default; }
+.edit-bar .msg { font-size: 12.5px; color: var(--muted); padding-inline: 6px; max-width: 32ch; }
+body.editing #doc { outline: 1px dashed var(--rule); outline-offset: 12px; }
+body.editing #doc:focus { outline: 1px dashed var(--muted); }
+
+</style>
+</head>
+<body>
+<main id="doc">
+<div class="page">
+  <header>
+    <div class="eyebrow">Shamrock paper protocol · arXiv:2503.09713 §5.2.3</div>
+    <h1>Sedov blast, 1,368,000 particles: where a step goes</h1>
+    <p class="lede">The time-stepping benchmark from the Shamrock SPH paper, run with one build of Phantom and cosmoSPHere on a CPU and three GPUs, and where each step spends its time.</p>
+    <div class="meta">
+      <span>measured <b>16 Sep 2026</b></span>
+      <span>steps <b>21–120</b>, median of <b>5</b> rounds</span>
+      <span>C<sub>cour</sub> = C<sub>force</sub> = <b>10⁻³</b></span>
+    </div>
+  </header>
+
+  <section>
+    <div class="section-head">
+      <h2>Where a step goes</h2>
+      <p>Milliseconds per time step on one scale. Each step is one density solve and one force pass on every platform. The GPU phases are timed with device events inside the solver; the host phases with phantom's section timers.</p>
+    </div>
+    <div class="panel stack-wrap" id="stacks"><div class="stack-row"><div class="lab">EPYC 9745<small>120 cores · gn005</small></div><div class="stack"><div class="seg" title="Tree build: 122.9 ms" style="width:35.114285714285714%;background:var(--c-tree)"></div><div class="seg" title="Density &amp; gradient kernels: 73.9 ms" style="width:21.114285714285717%;background:var(--c-dens)"></div><div class="seg" title="Force kernel: 101.0 ms" style="width:28.857142857142858%;background:var(--c-force)"></div><div class="seg" title="cons2prim: 0.9 ms" style="width:0.2571428571428571%;background:var(--c-c2p)"></div><div class="seg" title="Integration &amp; other: 3.5 ms" style="width:0.9999999999999936%;background:var(--c-other)"></div></div><div class="tot num">302.2 ms</div></div><div class="stack-row"><div class="lab">A100-PCIe<small>mad05</small></div><div class="stack"><div class="seg" title="Tree build: 2.7 ms" style="width:0.7845714285714286%;background:var(--c-tree)"></div><div class="seg" title="Neighbour lists: 1.4 ms" style="width:0.3917142857142857%;background:var(--c-lists)"></div><div class="seg" title="Density &amp; gradient kernels: 23.8 ms" style="width:6.790857142857143%;background:var(--c-dens)"></div><div class="seg" title="Force kernel: 22.6 ms" style="width:6.455142857142857%;background:var(--c-force)"></div><div class="seg" title="Host ↔ device transfers: 14.3 ms" style="width:4.072%;background:var(--c-xfer)"></div><div class="seg" title="Host Fortran around GPU calls: 17.8 ms" style="width:5.0848571428571425%;background:var(--c-host)"></div><div class="seg" title="cons2prim: 4.2 ms" style="width:1.2%;background:var(--c-c2p)"></div><div class="seg" title="Integration &amp; other: 12.0 ms" style="width:3.4345714285714277%;background:var(--c-other)"></div></div><div class="tot num">98.7 ms</div></div><div class="stack-row"><div class="lab">MI300A<small>ga008</small></div><div class="stack"><div class="seg" title="Tree build: 9.8 ms" style="width:2.7871428571428574%;background:var(--c-tree)"></div><div class="seg" title="Neighbour lists: 1.2 ms" style="width:0.35428571428571426%;background:var(--c-lists)"></div><div class="seg" title="Density &amp; gradient kernels: 10.5 ms" style="width:2.987142857142857%;background:var(--c-dens)"></div><div class="seg" title="Force kernel: 15.4 ms" style="width:4.413714285714286%;background:var(--c-force)"></div><div class="seg" title="Host ↔ device transfers: 6.0 ms" style="width:1.706285714285714%;background:var(--c-xfer)"></div><div class="seg" title="Host Fortran around GPU calls: 10.9 ms" style="width:3.116285714285715%;background:var(--c-host)"></div><div class="seg" title="cons2prim: 1.9 ms" style="width:0.5428571428571428%;background:var(--c-c2p)"></div><div class="seg" title="Integration &amp; other: 14.4 ms" style="width:4.103142857142856%;background:var(--c-other)"></div></div><div class="tot num">70.3 ms</div></div><div class="stack-row"><div class="lab">GH200<small>gn003</small></div><div class="stack"><div class="seg" title="Tree build: 2.3 ms" style="width:0.6637142857142857%;background:var(--c-tree)"></div><div class="seg" title="Neighbour lists: 0.8 ms" style="width:0.22085714285714286%;background:var(--c-lists)"></div><div class="seg" title="Density &amp; gradient kernels: 11.4 ms" style="width:3.2594285714285713%;background:var(--c-dens)"></div><div class="seg" title="Force kernel: 11.6 ms" style="width:3.3245714285714283%;background:var(--c-force)"></div><div class="seg" title="Host ↔ device transfers: 2.1 ms" style="width:0.6140000000000001%;background:var(--c-xfer)"></div><div class="seg" title="Host Fortran around GPU calls: 4.1 ms" style="width:1.1662857142857146%;background:var(--c-host)"></div><div class="seg" title="cons2prim: 1.2 ms" style="width:0.34285714285714286%;background:var(--c-c2p)"></div><div class="seg" title="Integration &amp; other: 2.9 ms" style="width:0.8348571428571422%;background:var(--c-other)"></div></div><div class="tot num">36.5 ms</div></div><div class="stack-axis"><div></div><div class="axis"><span style="left:0%">0</span><span style="left:14.285714285714285%">50</span><span style="left:28.57142857142857%">100</span><span style="left:42.857142857142854%">150</span><span style="left:57.14285714285714%">200</span><span style="left:71.42857142857143%">250</span><span style="left:85.71428571428571%">300</span><span style="left:100%">350 ms</span></div><div></div></div><div class="legend"><span><i style="background:var(--c-tree)"></i>Tree build</span><span><i style="background:var(--c-lists)"></i>Neighbour lists</span><span><i style="background:var(--c-dens)"></i>Density &amp; gradient kernels</span><span><i style="background:var(--c-force)"></i>Force kernel</span><span><i style="background:var(--c-xfer)"></i>Host ↔ device transfers</span><span><i style="background:var(--c-host)"></i>Host Fortran around GPU calls</span><span><i style="background:var(--c-c2p)"></i>cons2prim</span><span><i style="background:var(--c-other)"></i>Integration &amp; other</span></div></div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Full timing breakdown</h2>
+      <p>Laid out like phantom's own timing table: ms per step, and each row's share of the step.</p>
+    </div>
+    <div class="trees" id="trees"><article class="panel tree"><header><h3>EPYC 9745 <span style="font-weight:500;color:var(--muted)">· 120 cores · gn005</span></h3><span class="r">4.53×10⁶ /s</span></header><pre><div class="t-row"><span class="t-name"><span class="t-g"></span><span class="sw" style="background:transparent"></span>step</span><span class="t-ms num">302.2</span><span class="t-pct num"></span></div><div class="t-row"><span class="t-name"><span class="t-g">├─</span><span class="sw" style="background:var(--c-tree)"></span>tree (kd-tree build)</span><span class="t-ms num">122.9</span><span class="t-pct num">40.7%</span></div><div class="t-row"><span class="t-name"><span class="t-g">├─</span><span class="sw" style="background:var(--c-dens)"></span>density</span><span class="t-ms num">73.9</span><span class="t-pct num">24.5%</span></div><div class="t-row"><span class="t-name"><span class="t-g">├─</span><span class="sw" style="background:var(--c-force)"></span>force</span><span class="t-ms num">101.0</span><span class="t-pct num">33.4%</span></div><div class="t-row"><span class="t-name"><span class="t-g">├─</span><span class="sw" style="background:var(--c-c2p)"></span>cons2prim</span><span class="t-ms num">0.9</span><span class="t-pct num">0.3%</span></div><div class="t-row"><span class="t-name"><span class="t-g">└─</span><span class="sw" style="background:var(--c-other)"></span>integration &amp; other</span><span class="t-ms num">3.5</span><span class="t-pct num">1.2%</span></div></pre><p class="note">Phantom CPU: density and force include their neighbour searches. OpenMP, 120 threads bound to one socket.</p></article><article class="panel tree"><header><h3>A100-PCIe <span style="font-weight:500;color:var(--muted)">· mad05</span></h3><span class="r">13.86×10⁶ /s</span></header><pre><div class="t-row"><span class="t-name"><span class="t-g"></span><span class="sw" style="background:transparent"></span>step</span><span class="t-ms num">98.7</span><span class="t-pct num"></span></div><div class="t-row"><span class="t-name"><span class="t-g">├─</span><span class="sw" style="background:transparent"></span>density</span><span class="t-ms num">44.9</span><span class="t-pct num">45.5%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ ├─</span><span class="sw" style="background:var(--c-host)"></span>Fortran staging</span><span class="t-ms num">5.2</span><span class="t-pct num">5.3%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ ├─</span><span class="sw" style="background:transparent"></span>GPU solve</span><span class="t-ms num">36.4</span><span class="t-pct num">36.9%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-xfer)"></span>upload</span><span class="t-ms num">5.3</span><span class="t-pct num">5.3%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-tree)"></span>bounding box</span><span class="t-ms num">0.0</span><span class="t-pct num">0.0%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-tree)"></span>Hilbert keys + sort</span><span class="t-ms num">1.3</span><span class="t-pct num">1.4%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-tree)"></span>octree build</span><span class="t-ms num">1.3</span><span class="t-pct num">1.3%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-tree)"></span>node geometry</span><span class="t-ms num">0.1</span><span class="t-pct num">0.1%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-lists)"></span>lists, Newton</span><span class="t-ms num">0.4</span><span class="t-pct num">0.4%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-dens)"></span>Newton kernel</span><span class="t-ms num">8.8</span><span class="t-pct num">9.0%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-lists)"></span>lists, gradients</span><span class="t-ms num">0.4</span><span class="t-pct num">0.4%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-dens)"></span>gradient kernel</span><span class="t-ms num">14.9</span><span class="t-pct num">15.1%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-xfer)"></span>download</span><span class="t-ms num">3.5</span><span class="t-pct num">3.6%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ └─</span><span class="sw" style="background:var(--c-other)"></span>untimed</span><span class="t-ms num">0.3</span><span class="t-pct num">0.3%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ ├─</span><span class="sw" style="background:var(--c-host)"></span>Fortran write-back</span><span class="t-ms num">3.0</span><span class="t-pct num">3.1%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ └─</span><span class="sw" style="background:var(--c-host)"></span>rest of section</span><span class="t-ms num">0.3</span><span class="t-pct num">0.3%</span></div><div class="t-row"><span class="t-name"><span class="t-g">├─</span><span class="sw" style="background:var(--c-c2p)"></span>cons2prim</span><span class="t-ms num">4.2</span><span class="t-pct num">4.3%</span></div><div class="t-row"><span class="t-name"><span class="t-g">├─</span><span class="sw" style="background:transparent"></span>force</span><span class="t-ms num">38.0</span><span class="t-pct num">38.5%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ ├─</span><span class="sw" style="background:transparent"></span>GPU force pass</span><span class="t-ms num">28.7</span><span class="t-pct num">29.1%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-lists)"></span>hmax upsweep</span><span class="t-ms num">0.1</span><span class="t-pct num">0.1%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-lists)"></span>symmetric lists</span><span class="t-ms num">0.5</span><span class="t-pct num">0.5%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-xfer)"></span>upload</span><span class="t-ms num">2.0</span><span class="t-pct num">2.1%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-force)"></span>force kernel</span><span class="t-ms num">22.6</span><span class="t-pct num">22.9%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-xfer)"></span>download</span><span class="t-ms num">3.4</span><span class="t-pct num">3.5%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ └─</span><span class="sw" style="background:var(--c-other)"></span>untimed</span><span class="t-ms num">0.1</span><span class="t-pct num">0.1%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ └─</span><span class="sw" style="background:var(--c-host)"></span>Fortran around the call</span><span class="t-ms num">9.3</span><span class="t-pct num">9.4%</span></div><div class="t-row"><span class="t-name"><span class="t-g">└─</span><span class="sw" style="background:var(--c-other)"></span>integration &amp; other</span><span class="t-ms num">11.6</span><span class="t-pct num">11.8%</span></div></pre><p class="note">Host rows are phantom section timers; GPU rows are device-event timers inside cosmoSPHere, one call per step.</p></article><article class="panel tree"><header><h3>MI300A <span style="font-weight:500;color:var(--muted)">· ga008</span></h3><span class="r">19.46×10⁶ /s</span></header><pre><div class="t-row"><span class="t-name"><span class="t-g"></span><span class="sw" style="background:transparent"></span>step</span><span class="t-ms num">70.3</span><span class="t-pct num"></span></div><div class="t-row"><span class="t-name"><span class="t-g">├─</span><span class="sw" style="background:transparent"></span>density</span><span class="t-ms num">31.0</span><span class="t-pct num">44.1%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ ├─</span><span class="sw" style="background:var(--c-host)"></span>Fortran staging</span><span class="t-ms num">1.8</span><span class="t-pct num">2.6%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ ├─</span><span class="sw" style="background:transparent"></span>GPU solve</span><span class="t-ms num">24.9</span><span class="t-pct num">35.5%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-xfer)"></span>upload</span><span class="t-ms num">2.3</span><span class="t-pct num">3.2%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-tree)"></span>bounding box</span><span class="t-ms num">0.0</span><span class="t-pct num">0.0%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-tree)"></span>Hilbert keys + sort</span><span class="t-ms num">8.8</span><span class="t-pct num">12.5%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-tree)"></span>octree build</span><span class="t-ms num">0.9</span><span class="t-pct num">1.3%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-tree)"></span>node geometry</span><span class="t-ms num">0.1</span><span class="t-pct num">0.1%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-lists)"></span>lists, Newton</span><span class="t-ms num">0.3</span><span class="t-pct num">0.5%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-dens)"></span>Newton kernel</span><span class="t-ms num">3.7</span><span class="t-pct num">5.3%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-lists)"></span>lists, gradients</span><span class="t-ms num">0.4</span><span class="t-pct num">0.5%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-dens)"></span>gradient kernel</span><span class="t-ms num">6.7</span><span class="t-pct num">9.6%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-xfer)"></span>download</span><span class="t-ms num">1.4</span><span class="t-pct num">1.9%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ └─</span><span class="sw" style="background:var(--c-other)"></span>untimed</span><span class="t-ms num">0.4</span><span class="t-pct num">0.5%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ ├─</span><span class="sw" style="background:var(--c-host)"></span>Fortran write-back</span><span class="t-ms num">3.6</span><span class="t-pct num">5.1%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ └─</span><span class="sw" style="background:var(--c-host)"></span>rest of section</span><span class="t-ms num">0.4</span><span class="t-pct num">0.5%</span></div><div class="t-row"><span class="t-name"><span class="t-g">├─</span><span class="sw" style="background:var(--c-c2p)"></span>cons2prim</span><span class="t-ms num">1.9</span><span class="t-pct num">2.7%</span></div><div class="t-row"><span class="t-name"><span class="t-g">├─</span><span class="sw" style="background:transparent"></span>force</span><span class="t-ms num">24.0</span><span class="t-pct num">34.1%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ ├─</span><span class="sw" style="background:transparent"></span>GPU force pass</span><span class="t-ms num">18.9</span><span class="t-pct num">26.9%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-lists)"></span>hmax upsweep</span><span class="t-ms num">0.1</span><span class="t-pct num">0.2%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-lists)"></span>symmetric lists</span><span class="t-ms num">0.4</span><span class="t-pct num">0.6%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-xfer)"></span>upload</span><span class="t-ms num">1.0</span><span class="t-pct num">1.4%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-force)"></span>force kernel</span><span class="t-ms num">15.4</span><span class="t-pct num">22.0%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-xfer)"></span>download</span><span class="t-ms num">1.4</span><span class="t-pct num">2.0%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ └─</span><span class="sw" style="background:var(--c-other)"></span>untimed</span><span class="t-ms num">0.6</span><span class="t-pct num">0.8%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ └─</span><span class="sw" style="background:var(--c-host)"></span>Fortran around the call</span><span class="t-ms num">5.1</span><span class="t-pct num">7.3%</span></div><div class="t-row"><span class="t-name"><span class="t-g">└─</span><span class="sw" style="background:var(--c-other)"></span>integration &amp; other</span><span class="t-ms num">13.4</span><span class="t-pct num">19.1%</span></div></pre><p class="note">Host rows are phantom section timers; GPU rows are device-event timers inside cosmoSPHere, one call per step.</p></article><article class="panel tree"><header><h3>GH200 <span style="font-weight:500;color:var(--muted)">· gn003</span></h3><span class="r">37.48×10⁶ /s</span></header><pre><div class="t-row"><span class="t-name"><span class="t-g"></span><span class="sw" style="background:transparent"></span>step</span><span class="t-ms num">36.5</span><span class="t-pct num"></span></div><div class="t-row"><span class="t-name"><span class="t-g">├─</span><span class="sw" style="background:transparent"></span>density</span><span class="t-ms num">17.7</span><span class="t-pct num">48.5%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ ├─</span><span class="sw" style="background:var(--c-host)"></span>Fortran staging</span><span class="t-ms num">1.3</span><span class="t-pct num">3.6%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ ├─</span><span class="sw" style="background:transparent"></span>GPU solve</span><span class="t-ms num">15.6</span><span class="t-pct num">42.8%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-xfer)"></span>upload</span><span class="t-ms num">0.7</span><span class="t-pct num">2.0%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-tree)"></span>bounding box</span><span class="t-ms num">0.0</span><span class="t-pct num">0.0%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-tree)"></span>Hilbert keys + sort</span><span class="t-ms num">1.4</span><span class="t-pct num">3.7%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-tree)"></span>octree build</span><span class="t-ms num">0.9</span><span class="t-pct num">2.5%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-tree)"></span>node geometry</span><span class="t-ms num">0.1</span><span class="t-pct num">0.2%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-lists)"></span>lists, Newton</span><span class="t-ms num">0.2</span><span class="t-pct num">0.6%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-dens)"></span>Newton kernel</span><span class="t-ms num">4.0</span><span class="t-pct num">11.0%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-lists)"></span>lists, gradients</span><span class="t-ms num">0.2</span><span class="t-pct num">0.6%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-dens)"></span>gradient kernel</span><span class="t-ms num">7.4</span><span class="t-pct num">20.3%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-xfer)"></span>download</span><span class="t-ms num">0.5</span><span class="t-pct num">1.5%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ └─</span><span class="sw" style="background:var(--c-other)"></span>untimed</span><span class="t-ms num">0.2</span><span class="t-pct num">0.5%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ ├─</span><span class="sw" style="background:var(--c-host)"></span>Fortran write-back</span><span class="t-ms num">0.6</span><span class="t-pct num">1.7%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ └─</span><span class="sw" style="background:var(--c-host)"></span>rest of section</span><span class="t-ms num">0.1</span><span class="t-pct num">0.3%</span></div><div class="t-row"><span class="t-name"><span class="t-g">├─</span><span class="sw" style="background:var(--c-c2p)"></span>cons2prim</span><span class="t-ms num">1.2</span><span class="t-pct num">3.3%</span></div><div class="t-row"><span class="t-name"><span class="t-g">├─</span><span class="sw" style="background:transparent"></span>force</span><span class="t-ms num">14.9</span><span class="t-pct num">40.8%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ ├─</span><span class="sw" style="background:transparent"></span>GPU force pass</span><span class="t-ms num">12.9</span><span class="t-pct num">35.3%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-lists)"></span>hmax upsweep</span><span class="t-ms num">0.1</span><span class="t-pct num">0.2%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-lists)"></span>symmetric lists</span><span class="t-ms num">0.3</span><span class="t-pct num">0.7%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-xfer)"></span>upload</span><span class="t-ms num">0.3</span><span class="t-pct num">0.9%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-force)"></span>force kernel</span><span class="t-ms num">11.6</span><span class="t-pct num">31.9%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ ├─</span><span class="sw" style="background:var(--c-xfer)"></span>download</span><span class="t-ms num">0.6</span><span class="t-pct num">1.5%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ │ └─</span><span class="sw" style="background:var(--c-other)"></span>untimed</span><span class="t-ms num">0.0</span><span class="t-pct num">0.1%</span></div><div class="t-row"><span class="t-name"><span class="t-g">│ └─</span><span class="sw" style="background:var(--c-host)"></span>Fortran around the call</span><span class="t-ms num">2.0</span><span class="t-pct num">5.5%</span></div><div class="t-row"><span class="t-name"><span class="t-g">└─</span><span class="sw" style="background:var(--c-other)"></span>integration &amp; other</span><span class="t-ms num">2.7</span><span class="t-pct num">7.4%</span></div></pre><p class="note">Host rows are phantom section timers; GPU rows are device-event timers inside cosmoSPHere, one call per step.</p></article></div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>How comparable this is</h2></div>
+    <div class="notes">
+      <div class="note">
+        <h3>Same test, same restart, same code</h3>
+        <p>Phantom's Sedov setup in its default periodic box, npartx = 100 close-packed: 1,368,000 particles, the third point of the paper's Fig. 17. As in the paper, the setup is evolved five steps (both CFL factors 10⁻³) to make the restart; it was made once on the CPU and every platform starts from it. <code>PERIODIC=yes IND_TIMESTEPS=no</code>, no corrector sub-cycling, I/O excluded. One source export, built with the same flags everywhere.</p>
+      </div>
+      <div class="note">
+        <h3>A100 is the PCIe card</h3>
+        <p>Shamrock ran on an A100-SXM4-40GB in a DGX (NVLink host link). Ours is an A100-PCIe-40GB in mad05 (EPYC 7702 host), with host↔device transfers over PCIe: 14 ms of the 99 ms step. mad06's A100 was shared with other jobs; on mad05 the other cores were running unrelated single-threaded jobs, so ours were bound to 16 idle cores beside the GPU.</p>
+      </div>
+      <div class="note">
+        <h3>CPU generations</h3>
+        <p>The paper's Phantom CPU figure is a 64-core Zen 2 Epyc 7742 (2019). Our EPYC 9745 is a current Zen 5c socket run on all 120 cores; on 64 of them it gives 3.94×10⁶ particles/s.</p></div>
+      <div class="note">
+        <h3>Timer fix used for these runs</h3>
+        <p>Phantom's section timers step in 1/8 s mid-month: the start time is held in single precision as seconds since the start of the month. These runs keep it in double precision. The fix changes no physics.</p>
+      </div>
+    </div>
+  </section>
+</div>
+</main>
+
+<script id="page-editor">
+// In-place editing.  A writer presses Edit, changes any text, and Save keeps the edit:
+//  - in the Claude viewer, by publishing the page as the new version (every open view
+//    reloads to it);
+//  - opened from disk (file://), by writing the page back to a file: Chrome asks where the
+//    first time (pick the same file to overwrite it) and reuses that file afterwards;
+//    browsers without that API download the page instead.
+// Anywhere else (a web server such as GitHub Pages) the page stays read-only.
+// The page's source is rebuilt from its authored parts: the head, the page style, the
+// edited #doc markup and this script - never the live document.
+(function () {
+  const DRAFT = 'page-edit-draft:' + location.pathname;
+  const doc = document.getElementById('doc');
+
+  const bar = document.createElement('div');
+  bar.className = 'edit-bar';
+  bar.hidden = true;
+  bar.innerHTML = '<span class="msg" id="edit-msg" role="status"></span>' +
+    '<button type="button" id="edit-cancel" hidden>Cancel</button>' +
+    '<button type="button" id="edit-toggle">Edit page</button>';
+  document.body.appendChild(bar);
+  const msg = bar.querySelector('#edit-msg');
+  const toggle = bar.querySelector('#edit-toggle');
+  const cancel = bar.querySelector('#edit-cancel');
+  let artifact = null, original = null, editing = false, fileHandle = null;
+  const LOCAL = location.protocol === 'file:';
+
+  function setEditable(on) {
+    // the whole page body is one editing region, so every piece of text can be changed
+    if (on) doc.setAttribute('contenteditable', 'true'); else doc.removeAttribute('contenteditable');
+    doc.querySelectorAll('[contenteditable]').forEach(el => { if (el !== doc) el.removeAttribute('contenteditable'); });
+    document.body.classList.toggle('editing', on);
+    toggle.textContent = on ? 'Save' : 'Edit page';
+    toggle.classList.toggle('primary', on);
+    cancel.hidden = !on;
+    editing = on;
+  }
+
+  function cleanMarkup() {
+    const copy = doc.cloneNode(true);
+    copy.removeAttribute('contenteditable');
+    copy.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
+    return copy.innerHTML.trim();
+  }
+
+  function source(markup) {
+    const headParts = [];
+    const title = document.querySelector('title');
+    if (title) headParts.push(title.outerHTML);
+    document.querySelectorAll('meta[name="description"], link[rel="preconnect"], link[rel="stylesheet"]')
+      .forEach(el => headParts.push(el.outerHTML));
+    const style = document.getElementById('page-style').outerHTML;
+    const script = document.getElementById('page-editor');
+    return '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n' +
+      '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n' +
+      headParts.join('\n') + '\n' + style + '\n</head>\n<body>\n<main id="doc">\n' + markup +
+      '\n</main>\n\n<script id="page-editor">' + script.textContent + '<\/script>\n</body>\n</html>\n';
+  }
+
+  async function saveLocal(markup) {
+    const html = source(markup);
+    const name = decodeURIComponent(location.pathname.split('/').pop() || 'page.html');
+    if (window.showSaveFilePicker) {
+      if (!fileHandle) {
+        fileHandle = await window.showSaveFilePicker({
+          suggestedName: name,
+          types: [{ description: 'HTML page', accept: { 'text/html': ['.html'] } }] });
+      }
+      const w = await fileHandle.createWritable();
+      await w.write(html); await w.close();
+      return 'Saved to ' + fileHandle.name + '.';
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+    a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    return 'Downloaded ' + name + '; replace the original with it.';
+  }
+
+  async function save() {
+    const markup = cleanMarkup();
+    if (markup === original) { setEditable(false); msg.textContent = 'No changes.'; return; }
+    if (LOCAL) {
+      toggle.disabled = true; cancel.disabled = true; msg.textContent = 'Saving…';
+      try {
+        const done = await saveLocal(markup);
+        original = markup; setEditable(false); msg.textContent = done;
+        try { sessionStorage.removeItem(DRAFT); } catch (e) {}
+      } catch (err) {
+        msg.textContent = (err && err.name === 'AbortError')
+          ? 'Not saved. Press Save to choose a file.' : 'Saving failed: ' + (err && err.message || err);
+      }
+      toggle.disabled = false; cancel.disabled = false;
+      return;
+    }
+    toggle.disabled = true; cancel.disabled = true;
+    msg.textContent = 'Saving…';
+    try { sessionStorage.setItem(DRAFT, markup); } catch (e) {}
+    try {
+      await artifact.publish(source(markup));
+      try { sessionStorage.removeItem(DRAFT); } catch (e) {}
+      msg.textContent = 'Saved. Reloading…';
+    } catch (err) {
+      toggle.disabled = false; cancel.disabled = false;
+      const code = err && err.code;
+      if (code === 'conflict') {
+        msg.textContent = 'Someone saved a newer version; loading it. Your edit is kept for this tab.';
+      } else if (code === 'not_writer' || code === 'not_granted' || code === 'not_declared' ||
+                 code === 'consent_required' || code === 'capability_disabled' || code === 'capability_removed') {
+        setEditable(false); bar.hidden = true;
+        try { sessionStorage.removeItem(DRAFT); } catch (e) {}
+      } else if (code === 'rate_limited') {
+        msg.textContent = 'Saving too often. Wait a moment, then press Save again.';
+      } else if (code === 'too_large' || code === 'invalid_content') {
+        msg.textContent = 'This edit could not be saved (' + code + '). Cancel to discard it.';
+      } else {
+        msg.textContent = 'Saving failed. Press Save to try again.';
+      }
+    }
+  }
+
+  toggle.addEventListener('click', () => {
+    if (!editing) { original = cleanMarkup(); msg.textContent = ''; setEditable(true); }
+    else save();
+  });
+  cancel.addEventListener('click', () => {
+    doc.innerHTML = original; setEditable(false); msg.textContent = '';
+    try { sessionStorage.removeItem(DRAFT); } catch (e) {}
+  });
+
+  (async () => {
+    if (LOCAL) { bar.hidden = false; restoreDraft(); return; }
+    // the viewer injects window.claude; on any other web server the page stays read-only
+    for (let i = 0; i < 50 && !(window.claude && typeof window.claude.use === 'function'); i++)
+      await new Promise(r => setTimeout(r, 100));
+    const claude = window.claude;
+    if (!claude || typeof claude.use !== 'function') return;
+    artifact = await claude.use('artifact');
+    if (!artifact) return;
+    bar.hidden = false;
+    restoreDraft();
+  })();
+
+  function restoreDraft() {
+    let draft = null;
+    try { draft = sessionStorage.getItem(DRAFT); } catch (e) {}
+    if (draft && draft !== cleanMarkup()) {
+      original = cleanMarkup();
+      doc.innerHTML = draft;
+      setEditable(true);
+      msg.textContent = 'Your unsaved edit was restored.';
+    }
+  }
+})();
+
+</script>
+</body>
+</html>
