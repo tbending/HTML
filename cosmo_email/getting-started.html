@@ -85,6 +85,24 @@ td code { white-space: nowrap; }
 body.editing #doc { outline: 1px dashed var(--rule); outline-offset: 12px; }
 body.editing #doc:focus { outline: 1px dashed var(--muted); }
 
+/* copy-to-clipboard button on each code block.  The wrapper and the button are added by
+   the script at load and stripped again by cleanMarkup(), so the saved page keeps plain
+   <pre> blocks.  The button sits on the wrapper, not inside the <pre>: <pre> scrolls
+   sideways, and an absolute child of a scrolling box scrolls away with the text. */
+.copy-wrap { display: block; position: relative; }
+.copy-wrap > pre { padding-right: 68px; }
+.copy-btn { position: absolute; top: 7px; right: 7px; z-index: 1;
+  font: 500 12px/1 var(--sans); color: var(--muted); background: var(--surface);
+  border: 1px solid var(--rule); border-radius: 4px; padding: 5px 9px; cursor: pointer;
+  opacity: 0.6; transition: opacity .12s ease, color .12s ease; }
+.copy-wrap:hover .copy-btn, .copy-btn:focus-visible { opacity: 1; }
+.copy-btn:hover { color: var(--ink); }
+.copy-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.copy-btn.done { color: var(--accent); border-color: var(--accent); opacity: 1; }
+body.editing .copy-btn { display: none; }
+@media (hover: none) { .copy-btn { opacity: 1; } }
+@media print { .copy-btn { display: none; } }
+
 </style>
 </head>
 <body>
@@ -277,7 +295,88 @@ COSMO_GPU=0 ../bin/phantom sedov.in &gt; cpu.log</code></pre>
     const copy = doc.cloneNode(true);
     copy.removeAttribute('contenteditable');
     copy.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
+    stripCopyUI(copy);
     return copy.innerHTML.trim();
+  }
+
+  // ---- copy buttons on code blocks ------------------------------------------------
+  // Added at load and taken out again before anything is saved or compared, so they
+  // never reach the page source and never count as an edit.
+
+  function stripCopyUI(root) {
+    root.querySelectorAll('.copy-btn').forEach(el => el.remove());
+    root.querySelectorAll('.copy-wrap').forEach(w => {
+      const pre = w.querySelector('pre');
+      if (pre) w.replaceWith(pre); else w.remove();
+    });
+  }
+
+  function blockText(pre) {
+    // Walk the block rather than take textContent: live editing leaves <br> (and
+    // sometimes <div>) for the line breaks, and textContent drops those, running every
+    // command together on one line.  &nbsp; likewise has to go back to a plain space or
+    // the pasted shell command will not run.
+    let out = '';
+    (function walk(node) {
+      for (const n of node.childNodes) {
+        if (n.nodeType === 3) { out += n.nodeValue; continue; }
+        if (n.nodeType !== 1) continue;
+        if (n.classList && n.classList.contains('copy-btn')) continue;
+        const tag = n.tagName.toLowerCase();
+        if (tag === 'br') { out += '\n'; continue; }
+        if ((tag === 'div' || tag === 'p') && out && !out.endsWith('\n')) out += '\n';
+        walk(n);
+      }
+    })(pre);
+    return out.replace(/ /g, ' ').replace(/[ \t]+$/gm, '').replace(/\s+$/, '');
+  }
+
+  function legacyCopy(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;top:0;left:-9999px;opacity:0';
+    document.body.appendChild(ta); ta.select();
+    const ok = document.execCommand('copy');
+    ta.remove();
+    if (!ok) throw new Error('copy refused');
+  }
+
+  function flash(btn, text) {
+    btn.textContent = text; btn.classList.add('done');
+    clearTimeout(btn._flash);
+    btn._flash = setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('done'); }, 1400);
+  }
+
+  function addCopyButtons() {
+    doc.querySelectorAll('pre').forEach(pre => {
+      const parent = pre.parentElement;
+      if (parent && parent.classList.contains('copy-wrap')) return;   // already done
+      if (!blockText(pre)) return;
+      // a span, not a div: some blocks sit inside a heading, where a div is not allowed
+      const wrap = document.createElement('span');
+      wrap.className = 'copy-wrap';
+      pre.replaceWith(wrap);
+      wrap.appendChild(pre);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'copy-btn';
+      btn.setAttribute('contenteditable', 'false');
+      btn.setAttribute('aria-label', 'Copy this code to the clipboard');
+      btn.textContent = 'Copy';
+      btn.addEventListener('click', async ev => {
+        ev.preventDefault(); ev.stopPropagation();
+        const text = blockText(pre);
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) await navigator.clipboard.writeText(text);
+          else legacyCopy(text);
+          flash(btn, 'Copied');
+        } catch (err) {
+          try { legacyCopy(text); flash(btn, 'Copied'); }
+          catch (e2) { flash(btn, 'Select and copy'); }
+        }
+      });
+      wrap.appendChild(btn);
+    });
   }
 
   function source(markup) {
@@ -362,8 +461,11 @@ COSMO_GPU=0 ../bin/phantom sedov.in &gt; cpu.log</code></pre>
   });
   cancel.addEventListener('click', () => {
     doc.innerHTML = original; setEditable(false); msg.textContent = '';
+    addCopyButtons();
     try { sessionStorage.removeItem(DRAFT); } catch (e) {}
   });
+
+  addCopyButtons();   // the buttons work everywhere, including where the page is read-only
 
   (async () => {
     if (LOCAL) { bar.hidden = false; restoreDraft(); return; }
@@ -384,6 +486,7 @@ COSMO_GPU=0 ../bin/phantom sedov.in &gt; cpu.log</code></pre>
     if (draft && draft !== cleanMarkup()) {
       original = cleanMarkup();
       doc.innerHTML = draft;
+      addCopyButtons();
       setEditable(true);
       msg.textContent = 'Your unsaved edit was restored.';
     }
