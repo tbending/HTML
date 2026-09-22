@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Sedov 1.4M on a Quadro Pascal</title>
+<meta name="description" content="Where a step goes on an FP64-starved GPU: the same Phantom + cosmoSPHere code at the opposite end of the hardware range.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style id="page-style">
+:root {
+  --ground: #F3F5F7; --surface: #FFFFFF; --ink: #14202B; --muted: #5A6875; --faint: #8995A1;
+  --rule: #D3DAE1; --rule-soft: #E6EBEF; --ours: #0E6A87; --code-bg: #EEF2F5;
+  --c-tree: #6F8A3A; --c-lists: #A9C26A; --c-dens: #3C8FB3; --c-force: #0E5670;
+  --c-xfer: #A0668F; --c-host: #D29A38; --c-other: #AAB4BE;
+  --sans: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  --cond: "IBM Plex Sans Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0F161C; --surface: #151F27; --ink: #E3EAF0; --muted: #9AA8B4; --faint: #6D7B87;
+    --rule: #2A3842; --rule-soft: #1F2B34; --ours: #5CB8D6; --code-bg: #0B1116;
+    --c-tree: #9DB865; --c-lists: #CFE09A; --c-dens: #5FB0D2; --c-force: #2F86A6;
+    --c-xfer: #C88DB6; --c-host: #E6B25A; --c-other: #6E7B86;
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #0F161C; --surface: #151F27; --ink: #E3EAF0; --muted: #9AA8B4; --faint: #6D7B87;
+  --rule: #2A3842; --rule-soft: #1F2B34; --ours: #5CB8D6; --code-bg: #0B1116;
+  --c-tree: #9DB865; --c-lists: #CFE09A; --c-dens: #5FB0D2; --c-force: #2F86A6;
+  --c-xfer: #C88DB6; --c-host: #E6B25A; --c-other: #6E7B86;
+}
+* { box-sizing: border-box; }
+body { background: var(--ground); color: var(--ink); font-family: var(--sans);
+  font-size: 15px; line-height: 1.55; margin: 0; padding-inline: 20px; padding-block: 40px 64px; }
+.page { max-width: 900px; margin: 0 auto; display: grid; gap: 40px; }
+h1, h2, h3 { font-family: var(--cond); font-weight: 600; margin: 0; letter-spacing: -0.005em; text-wrap: balance; }
+h1 { font-size: 32px; line-height: 1.12; }
+h2 { font-size: 22px; }
+p { margin: 0; max-width: 72ch; }
+a { color: var(--ours); }
+.eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.lede { color: var(--muted); font-size: 16px; }
+header, section { display: grid; gap: 14px; }
+code { font-family: var(--mono); font-size: 0.9em; background: var(--code-bg); padding: 1px 4px; border-radius: 3px; }
+.panel { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; }
+.stack-wrap { padding: 20px 20px 16px; display: grid; gap: 14px; }
+.stack-row { display: grid; grid-template-columns: 150px 1fr 76px; gap: 14px; align-items: center; }
+.lab { font-weight: 600; font-size: 14px; line-height: 1.25; }
+.lab small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
+.stack { height: 26px; border-radius: 3px; overflow: hidden; display: flex; background: var(--rule-soft); }
+.seg { height: 100%; min-width: 0; border-right: 1px solid var(--surface); }
+.seg:last-child { border-right: 0; }
+.r { font-family: var(--mono); font-size: 12.5px; color: var(--muted); text-align: right; }
+.key { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 0 20px 18px; font-size: 12.5px; color: var(--muted); }
+.sw { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; }
+table { border-collapse: collapse; width: 100%; }
+th, td { text-align: left; padding: 7px 14px; font-size: 14px; vertical-align: top; }
+thead th { font-family: var(--mono); font-weight: 500; font-size: 11px; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--rule); }
+tbody tr + tr td { border-top: 1px solid var(--rule-soft); }
+td.n { font-family: var(--mono); text-align: right; white-space: nowrap; }
+td.pc { font-family: var(--mono); text-align: right; color: var(--muted); white-space: nowrap; }
+.sub td:first-child { padding-left: 34px; color: var(--muted); }
+.note { color: var(--muted); font-size: 13.5px; max-width: 74ch; }
+.warn { border-left: 3px solid var(--c-host); padding: 10px 0 10px 14px; }
+ul.plain { margin: 0; padding-left: 18px; display: grid; gap: 6px; max-width: 76ch; color: var(--muted); }
+ul.plain b, ul.plain code { color: var(--ink); }
+@media (max-width: 700px) { .stack-row { grid-template-columns: 110px 1fr 64px; } h1 { font-size: 26px; } }
+
+/* in-place editing */
+.edit-bar { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 10;
+  display: flex; gap: 8px; align-items: center; background: var(--surface); border: 1px solid var(--rule);
+  border-radius: 6px; padding: 6px; box-shadow: 0 2px 10px rgba(20, 32, 43, 0.12); font-family: var(--sans); }
+.edit-bar[hidden] { display: none !important; }
+.edit-bar button { font: 500 13px var(--sans); color: var(--ink); background: transparent; border: 1px solid var(--rule);
+  border-radius: 4px; padding: 5px 12px; cursor: pointer; }
+.edit-bar button.primary { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.edit-bar button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.edit-bar button:disabled { opacity: 0.5; cursor: default; }
+.edit-bar .msg { font-size: 12.5px; color: var(--muted); padding-inline: 6px; max-width: 32ch; }
+body.editing #doc { outline: 1px dashed var(--rule); outline-offset: 12px; }
+body.editing #doc:focus { outline: 1px dashed var(--muted); }
+
+</style>
+
+<main id="doc">
+<div class="page">
+
+  <header>
+    <div class="eyebrow">Phantom + cosmoSPHere · 22 September 2026</div>
+    <h1>Sedov 1.4M on a Quadro Pascal: where a step goes</h1>
+    <p class="lede">The same code as the datacentre runs, on a card with roughly 1/32 FP64 throughput.
+      The interesting result is not the speed — it is that almost everything except the arithmetic
+      disappears.</p>
+  </header>
+
+  <section>
+    <h2>Where a step goes</h2>
+    <p>One step is 3,987 ms. Shares of that step, so the shape can be read directly; the
+      <a href="step-breakdown.html">datacentre page</a> has the same phases on an absolute
+      millisecond scale.</p>
+    <div class="panel">
+      <div class="stack-wrap">
+        <div class="stack-row">
+          <div class="lab">Quadro Pascal<small>1,368,000 particles</small></div>
+          <div class="stack">
+            <div class="seg" style="width:0.25%;background:var(--c-tree)"></div>
+            <div class="seg" style="width:1.08%;background:var(--c-lists)"></div>
+            <div class="seg" style="width:47.8%;background:var(--c-dens)"></div>
+            <div class="seg" style="width:43.4%;background:var(--c-force)"></div>
+            <div class="seg" style="width:3.0%;background:var(--c-xfer)"></div>
+            <div class="seg" style="width:4.4%;background:var(--c-host)"></div>
+          </div>
+          <div class="r">3987 ms</div>
+        </div>
+        <div class="stack-row">
+          <div class="lab">GH200<small>for contrast, see note</small></div>
+          <div class="stack">
+            <div class="seg" style="width:6.6%;background:var(--c-tree)"></div>
+            <div class="seg" style="width:2.2%;background:var(--c-lists)"></div>
+            <div class="seg" style="width:31.2%;background:var(--c-dens)"></div>
+            <div class="seg" style="width:31.8%;background:var(--c-force)"></div>
+            <div class="seg" style="width:5.8%;background:var(--c-xfer)"></div>
+            <div class="seg" style="width:22.2%;background:var(--c-host)"></div>
+          </div>
+          <div class="r">36.5 ms</div>
+        </div>
+      </div>
+      <div class="key">
+        <span><span class="sw" style="background:var(--c-tree)"></span>Tree build</span>
+        <span><span class="sw" style="background:var(--c-lists)"></span>Neighbour lists</span>
+        <span><span class="sw" style="background:var(--c-dens)"></span>Density &amp; gradient kernels</span>
+        <span><span class="sw" style="background:var(--c-force)"></span>Force kernel</span>
+        <span><span class="sw" style="background:var(--c-xfer)"></span>Host ↔ device transfers</span>
+        <span><span class="sw" style="background:var(--c-host)"></span>Host Fortran, cons2prim, integration</span>
+      </div>
+    </div>
+    <p class="note">The two bars are <b>not</b> the same measurement and the rates are not comparable:
+      the GH200 run follows the Shamrock protocol (both CFL factors 10⁻³, one force pass per step,
+      steps 21–120 of an evolved dump), while these runs use Phantom's default CFL and integrate from
+      the initial lattice to t = 0.1. Shares of a step are still worth putting side by side; a rate is not.</p>
+  </section>
+
+  <section>
+    <h2>Full timing breakdown</h2>
+    <p>Milliseconds per step, and each row's share of the step. Median over five runs,
+      1,800 density solves, from <code>COSMO_DENS_STATS=1</code>.</p>
+    <div class="panel" style="overflow-x:auto">
+      <table>
+        <thead><tr><th>phase</th><th style="text-align:right">ms/step</th><th style="text-align:right">share</th></tr></thead>
+        <tbody>
+          <tr><td><b>step</b></td><td class="n"><b>3987</b></td><td class="pc"></td></tr>
+          <tr><td>├─ density solve</td><td class="n">2016</td><td class="pc">50.6%</td></tr>
+          <tr class="sub"><td>gradient kernel</td><td class="n">1147</td><td class="pc">28.8%</td></tr>
+          <tr class="sub"><td>Newton kernel</td><td class="n">758</td><td class="pc">19.0%</td></tr>
+          <tr class="sub"><td>upload</td><td class="n">46</td><td class="pc">1.2%</td></tr>
+          <tr class="sub"><td>neighbour lists</td><td class="n">31</td><td class="pc">0.8%</td></tr>
+          <tr class="sub"><td>download</td><td class="n">23</td><td class="pc">0.6%</td></tr>
+          <tr class="sub"><td>Hilbert keys + sort</td><td class="n">7</td><td class="pc">0.2%</td></tr>
+          <tr class="sub"><td>octree build</td><td class="n">2.5</td><td class="pc">0.1%</td></tr>
+          <tr class="sub"><td>node geometry, bounding box</td><td class="n">0.5</td><td class="pc">0.0%</td></tr>
+          <tr><td>├─ force pass</td><td class="n">1796</td><td class="pc">45.0%</td></tr>
+          <tr class="sub"><td>force kernel</td><td class="n">1731</td><td class="pc">43.4%</td></tr>
+          <tr class="sub"><td>download</td><td class="n">27</td><td class="pc">0.7%</td></tr>
+          <tr class="sub"><td>upload</td><td class="n">23</td><td class="pc">0.6%</td></tr>
+          <tr class="sub"><td>neighbour lists</td><td class="n">12</td><td class="pc">0.3%</td></tr>
+          <tr class="sub"><td>prep, hmax upsweep</td><td class="n">2</td><td class="pc">0.1%</td></tr>
+          <tr><td>└─ host Fortran, cons2prim, integration</td><td class="n">175</td><td class="pc">4.4%</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">The force pass runs 1.19 times per step here, because Phantom's default CFL makes the
+      corrector fire; the force rows are per step, not per pass. Per pass the force kernel is 1449 ms
+      and 96.4% of the pass.</p>
+  </section>
+
+  <section>
+    <h2>What it says</h2>
+    <ul class="plain">
+      <li><b>The two neighbour kernels are 94.5% of the density solve</b>, and the force kernel is
+        96.4% of the force pass. On GH200 the same two figures are 73% and 90%.</li>
+      <li><b>Transfers are 3.0% of the step</b>, against 5.8% on GH200 — and all the host-side
+        staging and ordering machinery lands inside the 4.4%, where on GH200 the host side is 22.2%.</li>
+      <li><b>The octree build is 0.1%.</b> On the CPU path, building the kd-tree is 40.7% of a step.</li>
+    </ul>
+    <p>A card whose FP64 rate is roughly 1/32 of its FP32 rate turns this into an almost pure
+      arithmetic benchmark, and the result is that the method is kernel-bound rather than
+      bandwidth- or tree-bound. That is easy to assert on hardware where the kernels are half
+      the step; it is hard to argue with when they are 95% of it. Run on unsuitable hardware,
+      failing in exactly the predicted way, is evidence rather than a wasted afternoon.</p>
+  </section>
+
+  <section>
+    <h2>Reading the rate from a log</h2>
+    <p>These runs give <b>0.34 ×10⁶ particles/s</b>: total wall 1431 s over 359 steps.</p>
+    <div class="warn">
+      <p class="note"><b>Take it from <code>Total wall time</code> and <code>Since code start: N
+        timesteps</code>, not from the timing table.</b> The <code>step</code> row in that table covers
+        one dump interval, not the run — the last one in these logs reads 39.22 s against a 1431 s run.</p>
+    </div>
+    <p class="note">For a figure comparable with the benchmark table, the protocol needs both CFL
+      factors at 10⁻³, a restart dump evolved five steps, and the <code>step</code> row differenced
+      between <code>nmax = 120</code> and <code>nmax = 20</code>, median of five rounds. It also needs
+      the timer fix: Phantom's <code>step</code> timer is <code>real*4</code> seconds since the start of
+      the month, which quantises to 1/8 s from the 13th onward, and the protocol subtracts two such
+      numbers.</p>
+  </section>
+
+</div>
+</html>
+</main>
+
+<script id="page-editor">
+// In-place editing.  A writer presses Edit, changes any text, and Save keeps the edit:
+//  - in the Claude viewer, by publishing the page as the new version (every open view
+//    reloads to it);
+//  - opened from disk (file://), by writing the page back to a file: Chrome asks where the
+//    first time (pick the same file to overwrite it) and reuses that file afterwards;
+//    browsers without that API download the page instead.
+// Anywhere else (a web server such as GitHub Pages) the page stays read-only.
+// The page's source is rebuilt from its authored parts: the head, the page style, the
+// edited #doc markup and this script - never the live document.
+(function () {
+  const DRAFT = 'page-edit-draft:' + location.pathname;
+  const doc = document.getElementById('doc');
+
+  const bar = document.createElement('div');
+  bar.className = 'edit-bar';
+  bar.hidden = true;
+  bar.innerHTML = '<span class="msg" id="edit-msg" role="status"></span>' +
+    '<button type="button" id="edit-cancel" hidden>Cancel</button>' +
+    '<button type="button" id="edit-toggle">Edit page</button>';
+  document.body.appendChild(bar);
+  const msg = bar.querySelector('#edit-msg');
+  const toggle = bar.querySelector('#edit-toggle');
+  const cancel = bar.querySelector('#edit-cancel');
+  let artifact = null, original = null, editing = false, fileHandle = null;
+  const LOCAL = location.protocol === 'file:';
+
+  function setEditable(on) {
+    // the whole page body is one editing region, so every piece of text can be changed
+    if (on) doc.setAttribute('contenteditable', 'true'); else doc.removeAttribute('contenteditable');
+    doc.querySelectorAll('[contenteditable]').forEach(el => { if (el !== doc) el.removeAttribute('contenteditable'); });
+    document.body.classList.toggle('editing', on);
+    toggle.textContent = on ? 'Save' : 'Edit page';
+    toggle.classList.toggle('primary', on);
+    cancel.hidden = !on;
+    editing = on;
+  }
+
+  function cleanMarkup() {
+    const copy = doc.cloneNode(true);
+    copy.removeAttribute('contenteditable');
+    copy.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
+    return copy.innerHTML.trim();
+  }
+
+  function source(markup) {
+    const headParts = [];
+    const title = document.querySelector('title');
+    if (title) headParts.push(title.outerHTML);
+    document.querySelectorAll('meta[name="description"], link[rel="preconnect"], link[rel="stylesheet"]')
+      .forEach(el => headParts.push(el.outerHTML));
+    const style = document.getElementById('page-style').outerHTML;
+    const script = document.getElementById('page-editor');
+    return '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n' +
+      '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n' +
+      headParts.join('\n') + '\n' + style + '\n</head>\n<body>\n<main id="doc">\n' + markup +
+      '\n</main>\n\n<script id="page-editor">' + script.textContent + '<\/script>\n</body>\n</html>\n';
+  }
+
+  async function saveLocal(markup) {
+    const html = source(markup);
+    const name = decodeURIComponent(location.pathname.split('/').pop() || 'page.html');
+    if (window.showSaveFilePicker) {
+      if (!fileHandle) {
+        fileHandle = await window.showSaveFilePicker({
+          suggestedName: name,
+          types: [{ description: 'HTML page', accept: { 'text/html': ['.html'] } }] });
+      }
+      const w = await fileHandle.createWritable();
+      await w.write(html); await w.close();
+      return 'Saved to ' + fileHandle.name + '.';
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+    a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    return 'Downloaded ' + name + '; replace the original with it.';
+  }
+
+  async function save() {
+    const markup = cleanMarkup();
+    if (markup === original) { setEditable(false); msg.textContent = 'No changes.'; return; }
+    if (LOCAL) {
+      toggle.disabled = true; cancel.disabled = true; msg.textContent = 'Saving…';
+      try {
+        const done = await saveLocal(markup);
+        original = markup; setEditable(false); msg.textContent = done;
+        try { sessionStorage.removeItem(DRAFT); } catch (e) {}
+      } catch (err) {
+        msg.textContent = (err && err.name === 'AbortError')
+          ? 'Not saved. Press Save to choose a file.' : 'Saving failed: ' + (err && err.message || err);
+      }
+      toggle.disabled = false; cancel.disabled = false;
+      return;
+    }
+    toggle.disabled = true; cancel.disabled = true;
+    msg.textContent = 'Saving…';
+    try { sessionStorage.setItem(DRAFT, markup); } catch (e) {}
+    try {
+      await artifact.publish(source(markup));
+      try { sessionStorage.removeItem(DRAFT); } catch (e) {}
+      msg.textContent = 'Saved. Reloading…';
+    } catch (err) {
+      toggle.disabled = false; cancel.disabled = false;
+      const code = err && err.code;
+      if (code === 'conflict') {
+        msg.textContent = 'Someone saved a newer version; loading it. Your edit is kept for this tab.';
+      } else if (code === 'not_writer' || code === 'not_granted' || code === 'not_declared' ||
+                 code === 'consent_required' || code === 'capability_disabled' || code === 'capability_removed') {
+        setEditable(false); bar.hidden = true;
+        try { sessionStorage.removeItem(DRAFT); } catch (e) {}
+      } else if (code === 'rate_limited') {
+        msg.textContent = 'Saving too often. Wait a moment, then press Save again.';
+      } else if (code === 'too_large' || code === 'invalid_content') {
+        msg.textContent = 'This edit could not be saved (' + code + '). Cancel to discard it.';
+      } else {
+        msg.textContent = 'Saving failed. Press Save to try again.';
+      }
+    }
+  }
+
+  toggle.addEventListener('click', () => {
+    if (!editing) { original = cleanMarkup(); msg.textContent = ''; setEditable(true); }
+    else save();
+  });
+  cancel.addEventListener('click', () => {
+    doc.innerHTML = original; setEditable(false); msg.textContent = '';
+    try { sessionStorage.removeItem(DRAFT); } catch (e) {}
+  });
+
+  (async () => {
+    if (LOCAL) { bar.hidden = false; restoreDraft(); return; }
+    // the viewer injects window.claude; on any other web server the page stays read-only
+    for (let i = 0; i < 50 && !(window.claude && typeof window.claude.use === 'function'); i++)
+      await new Promise(r => setTimeout(r, 100));
+    const claude = window.claude;
+    if (!claude || typeof claude.use !== 'function') return;
+    artifact = await claude.use('artifact');
+    if (!artifact) return;
+    bar.hidden = false;
+    restoreDraft();
+  })();
+
+  function restoreDraft() {
+    let draft = null;
+    try { draft = sessionStorage.getItem(DRAFT); } catch (e) {}
+    if (draft && draft !== cleanMarkup()) {
+      original = cleanMarkup();
+      doc.innerHTML = draft;
+      setEditable(true);
+      msg.textContent = 'Your unsaved edit was restored.';
+    }
+  }
+})();
+
+</script>
