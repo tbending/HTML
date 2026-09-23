@@ -90,34 +90,57 @@ body.editing #doc:focus { outline: 1px dashed var(--muted); }
 <div class="page">
 
   <header>
-    <div class="eyebrow">Phantom + cosmoSPHere · 22 September 2026</div>
+    <div class="eyebrow">Shamrock paper protocol · arXiv:2503.09713 §5.2.3 · 23 September 2026</div>
     <h1>Sedov 1.4M on a Quadro Pascal: where a step goes</h1>
-    <p class="lede">The same code as the datacentre runs, on a card with roughly 1/32 FP64 throughput.
-      The interesting result is not the speed — it is that almost everything except the arithmetic
-      disappears.</p>
+    <p class="lede">The same benchmark, the same code and the same protocol as the datacentre runs,
+      on a card with roughly 1/32 FP64 throughput. The interesting result is not the speed — it is
+      that almost everything except the arithmetic disappears.</p>
   </header>
 
   <section>
     <h2>Where a step goes</h2>
-    <p>One step is 3,987 ms. Shares of that step, so the shape can be read directly; the
-      <a href="step-breakdown.html">datacentre page</a> has the same phases on an absolute
-      millisecond scale.</p>
+    <p>Shares of a step, so the shape can be read across four very different machines at once.
+      The step times differ by ninety-fold, so this is deliberately <b>not to scale</b>; the
+      <a href="step-breakdown.html">datacentre page</a> has the three fast platforms on an
+      absolute millisecond scale.</p>
     <div class="panel">
       <div class="stack-wrap">
         <div class="stack-row">
-          <div class="lab">Quadro Pascal<small>1,368,000 particles</small></div>
+          <div class="lab">Quadro Pascal<small>0.42 ×10⁶ /s</small></div>
           <div class="stack">
-            <div class="seg" style="width:0.25%;background:var(--c-tree)"></div>
-            <div class="seg" style="width:1.08%;background:var(--c-lists)"></div>
-            <div class="seg" style="width:47.8%;background:var(--c-dens)"></div>
-            <div class="seg" style="width:43.4%;background:var(--c-force)"></div>
-            <div class="seg" style="width:3.0%;background:var(--c-xfer)"></div>
-            <div class="seg" style="width:4.4%;background:var(--c-host)"></div>
+            <div class="seg" style="width:0.3%;background:var(--c-tree)"></div>
+            <div class="seg" style="width:0.8%;background:var(--c-lists)"></div>
+            <div class="seg" style="width:52.3%;background:var(--c-dens)"></div>
+            <div class="seg" style="width:42.8%;background:var(--c-force)"></div>
+            <div class="seg" style="width:3.4%;background:var(--c-xfer)"></div>
+            <div class="seg" style="width:0.5%;background:var(--c-host)"></div>
           </div>
-          <div class="r">3987 ms</div>
+          <div class="r">3298 ms</div>
         </div>
         <div class="stack-row">
-          <div class="lab">GH200<small>for contrast, see note</small></div>
+          <div class="lab">EPYC 9745<small>120 cores · 4.53 ×10⁶ /s</small></div>
+          <div class="stack">
+            <div class="seg" style="width:40.7%;background:var(--c-tree)"></div>
+            <div class="seg" style="width:24.5%;background:var(--c-dens)"></div>
+            <div class="seg" style="width:33.4%;background:var(--c-force)"></div>
+            <div class="seg" style="width:1.5%;background:var(--c-host)"></div>
+          </div>
+          <div class="r">302 ms</div>
+        </div>
+        <div class="stack-row">
+          <div class="lab">A100-PCIe<small>13.9 ×10⁶ /s</small></div>
+          <div class="stack">
+            <div class="seg" style="width:2.7%;background:var(--c-tree)"></div>
+            <div class="seg" style="width:1.4%;background:var(--c-lists)"></div>
+            <div class="seg" style="width:24.0%;background:var(--c-dens)"></div>
+            <div class="seg" style="width:22.9%;background:var(--c-force)"></div>
+            <div class="seg" style="width:14.4%;background:var(--c-xfer)"></div>
+            <div class="seg" style="width:34.5%;background:var(--c-host)"></div>
+          </div>
+          <div class="r">98.7 ms</div>
+        </div>
+        <div class="stack-row">
+          <div class="lab">GH200<small>37.5 ×10⁶ /s</small></div>
           <div class="stack">
             <div class="seg" style="width:6.6%;background:var(--c-tree)"></div>
             <div class="seg" style="width:2.2%;background:var(--c-lists)"></div>
@@ -138,75 +161,73 @@ body.editing #doc:focus { outline: 1px dashed var(--muted); }
         <span><span class="sw" style="background:var(--c-host)"></span>Host Fortran, cons2prim, integration</span>
       </div>
     </div>
-    <p class="note">The two bars are <b>not</b> the same measurement and the rates are not comparable:
-      the GH200 run follows the Shamrock protocol (both CFL factors 10⁻³, one force pass per step,
-      steps 21–120 of an evolved dump), while these runs use Phantom's default CFL and integrate from
-      the initial lattice to t = 0.1. Shares of a step are still worth putting side by side; a rate is not.</p>
+    <p class="note">All four follow the same protocol: 1,368,000 particles, both CFL factors 10⁻³
+      so a step is one density solve and one force pass, median of five rounds. The Pascal run times
+      120 steps from a 20-step restart rather than differencing steps 21–120 of a 120-step run, but
+      its start-up is 0.3 s of 395.7 s, so the rates are comparable. On the CPU there are no transfers
+      and the neighbour searches sit inside the density and force rows.</p>
   </section>
 
   <section>
     <h2>Full timing breakdown</h2>
-    <p>Milliseconds per step, and each row's share of the step. Median over five runs,
-      1,800 density solves, from <code>COSMO_DENS_STATS=1</code>.</p>
+    <p>Milliseconds per step on the Quadro Pascal, and each row's share of the step. Median
+      over five runs, 610 density solves, from <code>COSMO_DENS_STATS=1</code>.</p>
     <div class="panel" style="overflow-x:auto">
       <table>
         <thead><tr><th>phase</th><th style="text-align:right">ms/step</th><th style="text-align:right">share</th></tr></thead>
         <tbody>
-          <tr><td><b>step</b></td><td class="n"><b>3987</b></td><td class="pc"></td></tr>
-          <tr><td>├─ density solve</td><td class="n">2016</td><td class="pc">50.6%</td></tr>
-          <tr class="sub"><td>gradient kernel</td><td class="n">1147</td><td class="pc">28.8%</td></tr>
-          <tr class="sub"><td>Newton kernel</td><td class="n">758</td><td class="pc">19.0%</td></tr>
-          <tr class="sub"><td>upload</td><td class="n">46</td><td class="pc">1.2%</td></tr>
-          <tr class="sub"><td>neighbour lists</td><td class="n">31</td><td class="pc">0.8%</td></tr>
-          <tr class="sub"><td>download</td><td class="n">23</td><td class="pc">0.6%</td></tr>
+          <tr><td><b>step</b></td><td class="n"><b>3298</b></td><td class="pc"></td></tr>
+          <tr><td>├─ density solve</td><td class="n">1820</td><td class="pc">55.2%</td></tr>
+          <tr class="sub"><td>gradient kernel</td><td class="n">1091</td><td class="pc">33.1%</td></tr>
+          <tr class="sub"><td>Newton kernel</td><td class="n">634</td><td class="pc">19.2%</td></tr>
+          <tr class="sub"><td>upload</td><td class="n">46</td><td class="pc">1.4%</td></tr>
+          <tr class="sub"><td>download</td><td class="n">23</td><td class="pc">0.7%</td></tr>
+          <tr class="sub"><td>neighbour lists</td><td class="n">16</td><td class="pc">0.5%</td></tr>
           <tr class="sub"><td>Hilbert keys + sort</td><td class="n">7</td><td class="pc">0.2%</td></tr>
-          <tr class="sub"><td>octree build</td><td class="n">2.5</td><td class="pc">0.1%</td></tr>
-          <tr class="sub"><td>node geometry, bounding box</td><td class="n">0.5</td><td class="pc">0.0%</td></tr>
-          <tr><td>├─ force pass</td><td class="n">1796</td><td class="pc">45.0%</td></tr>
-          <tr class="sub"><td>force kernel</td><td class="n">1731</td><td class="pc">43.4%</td></tr>
-          <tr class="sub"><td>download</td><td class="n">27</td><td class="pc">0.7%</td></tr>
-          <tr class="sub"><td>upload</td><td class="n">23</td><td class="pc">0.6%</td></tr>
-          <tr class="sub"><td>neighbour lists</td><td class="n">12</td><td class="pc">0.3%</td></tr>
-          <tr class="sub"><td>prep, hmax upsweep</td><td class="n">2</td><td class="pc">0.1%</td></tr>
-          <tr><td>└─ host Fortran, cons2prim, integration</td><td class="n">175</td><td class="pc">4.4%</td></tr>
+          <tr class="sub"><td>octree build, node geometry</td><td class="n">2.6</td><td class="pc">0.1%</td></tr>
+          <tr><td>├─ force pass</td><td class="n">1465</td><td class="pc">44.4%</td></tr>
+          <tr class="sub"><td>force kernel</td><td class="n">1411</td><td class="pc">42.8%</td></tr>
+          <tr class="sub"><td>download</td><td class="n">23</td><td class="pc">0.7%</td></tr>
+          <tr class="sub"><td>upload</td><td class="n">19</td><td class="pc">0.6%</td></tr>
+          <tr class="sub"><td>symmetric lists, prep, hmax</td><td class="n">10.5</td><td class="pc">0.3%</td></tr>
+          <tr><td>└─ host Fortran, cons2prim, integration</td><td class="n">15</td><td class="pc">0.5%</td></tr>
         </tbody>
       </table>
     </div>
-    <p class="note">The force pass runs 1.19 times per step here, because Phantom's default CFL makes the
-      corrector fire; the force rows are per step, not per pass. Per pass the force kernel is 1449 ms
-      and 96.4% of the pass.</p>
-  </section>
+    <p class="note">122 force passes for 120 steps, so the corrector fires twice in the run and the
+      force rows are per step rather than per pass. Five rounds spanned 0.43 s out of 396 s.</p>
 
-  <section>
     <h2>What it says</h2>
     <ul class="plain">
-      <li><b>The two neighbour kernels are 94.5% of the density solve</b>, and the force kernel is
-        96.4% of the force pass. On GH200 the same two figures are 73% and 90%.</li>
-      <li><b>Transfers are 3.0% of the step</b>, against 5.8% on GH200 — and all the host-side
-        staging and ordering machinery lands inside the 4.4%, where on GH200 the host side is 22.2%.</li>
-      <li><b>The octree build is 0.1%.</b> On the CPU path, building the kd-tree is 40.7% of a step.</li>
+      <li><b>The two neighbour kernels are 95% of the density solve</b>, and the force kernel is
+        96% of the force pass. On GH200 the same figures are 73% and 90%, on A100 65% and 79%.</li>
+      <li><b>Transfers are 3.4% of the step</b>, against 5.8% on GH200 and 14.4% on A100 — the
+        slower the arithmetic, the less the PCIe link matters.</li>
+      <li><b>The octree build is 0.1%.</b> On the CPU path, building the kd-tree is 40.7% of a step
+        and is the single largest item.</li>
+      <li><b>Host-side work is 0.5%</b>, against 34.5% on A100. The staging, ordering and cons2prim
+        that dominate the fast platforms are invisible here.</li>
     </ul>
     <p>A card whose FP64 rate is roughly 1/32 of its FP32 rate turns this into an almost pure
       arithmetic benchmark, and the result is that the method is kernel-bound rather than
-      bandwidth- or tree-bound. That is easy to assert on hardware where the kernels are half
-      the step; it is hard to argue with when they are 95% of it. Run on unsuitable hardware,
-      failing in exactly the predicted way, is evidence rather than a wasted afternoon.</p>
-  </section>
+      bandwidth- or tree-bound. That is easy to assert where the kernels are half the step; it is
+      hard to argue with when they are 95% of it. The corollary matters more for what to port next:
+      every part of the infrastructure — tree, lists, transfers, host staging — scales with things a
+      weak GPU barely punishes, so the cost of adding physics is bounded by FP64 throughput and
+      little else.</p>
 
-  <section>
     <h2>Reading the rate from a log</h2>
-    <p>These runs give <b>0.34 ×10⁶ particles/s</b>: total wall 1431 s over 359 steps.</p>
+    <p><b>0.415 ×10⁶ particles/s</b>: 395.7 s of wall over 120 steps, median of five rounds that
+      spanned 0.43 s. That is 33× behind the A100 and 90× behind GH200, and 11× behind a
+      120-core EPYC — about what a 1/32-rate FP64 part should give.</p>
     <div class="warn">
-      <p class="note"><b>Take it from <code>Total wall time</code> and <code>Since code start: N
-        timesteps</code>, not from the timing table.</b> The <code>step</code> row in that table covers
-        one dump interval, not the run — the last one in these logs reads 39.22 s against a 1431 s run.</p>
+      <p class="note">Take the rate from <code>Total wall time</code> and <code>Since code start: N
+        timesteps</code>. The <code>step</code> row of the timing table covers one dump interval; it
+        happens to be the whole run here because there is only one, but that is not generally true.</p>
     </div>
-    <p class="note">For a figure comparable with the benchmark table, the protocol needs both CFL
-      factors at 10⁻³, a restart dump evolved five steps, and the <code>step</code> row differenced
-      between <code>nmax = 120</code> and <code>nmax = 20</code>, median of five rounds. It also needs
-      the timer fix: Phantom's <code>step</code> timer is <code>real*4</code> seconds since the start of
-      the month, which quantises to 1/8 s from the 13th onward, and the protocol subtracts two such
-      numbers.</p>
+    <p class="note">The timer fix matters for this measurement: Phantom's <code>step</code> timer is
+      <code>real*4</code> seconds since the start of the month, which quantises to 1/8 s from the
+      13th onward.</p>
   </section>
 
 </div>
