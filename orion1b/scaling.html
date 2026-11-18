@@ -5,14 +5,17 @@
 <style>
 :root{color-scheme:light;--surface:#fcfcfb;--ink:#0b0b0b;--ink2:#52514e;
  --ink3:#7a7974;--grid:#e4e3df;--rule:#d6d5d0;--tip:#ffffff;
- --omp:#2a78d6;--mpi:#eb6834;--ideal:#9a998f}
+ --omp:#2a78d6;--mpi:#eb6834;--ideal:#9a998f;
+ --c0:#2a78d6;--c1:#eb6834;--c2:#1baf7a;--c3:#eda100;--c4:#e87ba4;--c5:#008300}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
  color-scheme:dark;--surface:#1a1a19;--ink:#f0efec;--ink2:#c3c2b7;
  --ink3:#9a998f;--grid:#2e2e2c;--rule:#3a3a37;--tip:#262624;
- --omp:#3987e5;--mpi:#d95926;--ideal:#7a7974}}
+ --omp:#3987e5;--mpi:#d95926;--ideal:#7a7974;
+ --c0:#3987e5;--c1:#d95926;--c2:#199e70;--c3:#c98500;--c4:#d55181;--c5:#008300}}
 :root[data-theme="dark"]{color-scheme:dark;--surface:#1a1a19;--ink:#f0efec;
  --ink2:#c3c2b7;--ink3:#9a998f;--grid:#2e2e2c;--rule:#3a3a37;--tip:#262624;
- --omp:#3987e5;--mpi:#d95926;--ideal:#7a7974}
+ --omp:#3987e5;--mpi:#d95926;--ideal:#7a7974;
+ --c0:#3987e5;--c1:#d95926;--c2:#199e70;--c3:#c98500;--c4:#d55181;--c5:#008300}
 body{margin:0;background:var(--surface);color:var(--ink);
  font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 main{max-width:1100px;margin:0 auto;padding:24px 16px 48px}
@@ -51,6 +54,8 @@ thead th{color:var(--ink2);font-weight:600;border-bottom:1px solid var(--rule);v
 thead th small{display:block;font-weight:400;color:var(--ink3)}
 tbody tr+tr td{border-top:1px solid var(--grid)}
 td.na{color:var(--ink3)}
+td.best{font-weight:600}
+.single{max-width:720px}
 .foot{color:var(--ink3);font-size:12px;margin-top:6px}
 </style></head><body><main>
 <nav class="crumb"><a href="index.html">Orion timing pages</a></nav>
@@ -74,9 +79,20 @@ SINKONCE, INOSINKFAST, THINCUT). Hover or focus a point for its values.</p>
 full evaluation of all particles at the start of the step. Substeps: step
 minus first time around. Efficiency = T(ref) &times; cores(ref) / (T &times;
 cores).</p>
+<h2>Hybrid layouts: ranks &times; threads</h2>
+<p class="sub">For each core count, every power-of-two split between MPI
+ranks and OpenMP threads per rank, from pure MPI (1 thread per rank) to pure
+OpenMP (1 rank). Each rank runs on its own block of consecutive cores, its
+threads inside that block.</p>
+<ul class="legend" id="hlegend"></ul>
+<div class="single"><div id="chyb"></div></div>
+<div class="wrap"><table id="thyb"></table></div>
+<p class="foot">Minutes for one maximum timestep; the fastest layout for each
+core count in bold. Rows: cores; columns: threads per rank (ranks = cores /
+threads).</p>
 <div id="tip" role="tooltip"></div>
 <script>
-const D = {"rows": [{"mode": "omp", "n": 1, "status": "queued", "min": null, "first": null}, {"mode": "omp", "n": 2, "status": "queued", "min": null, "first": null}, {"mode": "omp", "n": 4, "status": "queued", "min": null, "first": null}, {"mode": "omp", "n": 8, "status": "queued", "min": null, "first": null}, {"mode": "omp", "n": 16, "status": "done", "min": 9.247, "first": 3.688}, {"mode": "omp", "n": 32, "status": "done", "min": 5.294, "first": 2.106}, {"mode": "omp", "n": 64, "status": "done", "min": 3.909, "first": 1.577}, {"mode": "omp", "n": 128, "status": "done", "min": 3.333, "first": 1.308}, {"mode": "mpi", "n": 1, "status": "queued", "min": null, "first": null, "shared": true}, {"mode": "mpi", "n": 2, "status": "queued", "min": null, "first": null}, {"mode": "mpi", "n": 4, "status": "queued", "min": null, "first": null}, {"mode": "mpi", "n": 8, "status": "running", "min": null, "first": null}, {"mode": "mpi", "n": 16, "status": "done", "min": 7.786, "first": 1.881}, {"mode": "mpi", "n": 32, "status": "done", "min": 4.001, "first": 0.984}, {"mode": "mpi", "n": 64, "status": "done", "min": 2.332, "first": 0.513}, {"mode": "mpi", "n": 128, "status": "done", "min": 1.585, "first": 0.327}]};
+const D = {"rows": [{"mode": "omp", "n": 1, "status": "running", "min": null, "first": null}, {"mode": "omp", "n": 2, "status": "running", "min": null, "first": null}, {"mode": "omp", "n": 4, "status": "queued", "min": null, "first": null}, {"mode": "omp", "n": 8, "status": "running", "min": null, "first": null}, {"mode": "omp", "n": 16, "status": "done", "min": 9.247, "first": 3.688}, {"mode": "omp", "n": 32, "status": "done", "min": 5.294, "first": 2.106}, {"mode": "omp", "n": 64, "status": "done", "min": 3.909, "first": 1.577}, {"mode": "omp", "n": 128, "status": "done", "min": 3.333, "first": 1.308}, {"mode": "mpi", "n": 1, "status": "running", "min": null, "first": null, "shared": true}, {"mode": "mpi", "n": 2, "status": "running", "min": null, "first": null}, {"mode": "mpi", "n": 4, "status": "queued", "min": null, "first": null}, {"mode": "mpi", "n": 8, "status": "done", "min": 13.1, "first": 3.294}, {"mode": "mpi", "n": 16, "status": "done", "min": 7.786, "first": 1.881}, {"mode": "mpi", "n": 32, "status": "done", "min": 4.001, "first": 0.984}, {"mode": "mpi", "n": 64, "status": "done", "min": 2.332, "first": 0.513}, {"mode": "mpi", "n": 128, "status": "done", "min": 1.585, "first": 0.327}], "hyb": [{"n": 4, "r": 1, "t": 4, "status": "queued", "min": null, "first": null}, {"n": 4, "r": 2, "t": 2, "status": "queued", "min": null, "first": null}, {"n": 4, "r": 4, "t": 1, "status": "queued", "min": null, "first": null}, {"n": 8, "r": 1, "t": 8, "status": "running", "min": null, "first": null}, {"n": 8, "r": 2, "t": 4, "status": "queued", "min": null, "first": null}, {"n": 8, "r": 4, "t": 2, "status": "queued", "min": null, "first": null}, {"n": 8, "r": 8, "t": 1, "status": "done", "min": 13.1, "first": 3.294}, {"n": 16, "r": 1, "t": 16, "status": "done", "min": 9.247, "first": 3.688}, {"n": 16, "r": 2, "t": 8, "status": "queued", "min": null, "first": null}, {"n": 16, "r": 4, "t": 4, "status": "queued", "min": null, "first": null}, {"n": 16, "r": 8, "t": 2, "status": "queued", "min": null, "first": null}, {"n": 16, "r": 16, "t": 1, "status": "done", "min": 7.786, "first": 1.881}, {"n": 32, "r": 1, "t": 32, "status": "done", "min": 5.294, "first": 2.106}, {"n": 32, "r": 2, "t": 16, "status": "queued", "min": null, "first": null}, {"n": 32, "r": 4, "t": 8, "status": "queued", "min": null, "first": null}, {"n": 32, "r": 8, "t": 4, "status": "queued", "min": null, "first": null}, {"n": 32, "r": 16, "t": 2, "status": "queued", "min": null, "first": null}, {"n": 32, "r": 32, "t": 1, "status": "done", "min": 4.001, "first": 0.984}, {"n": 64, "r": 1, "t": 64, "status": "done", "min": 3.909, "first": 1.577}, {"n": 64, "r": 2, "t": 32, "status": "queued", "min": null, "first": null}, {"n": 64, "r": 4, "t": 16, "status": "queued", "min": null, "first": null}, {"n": 64, "r": 8, "t": 8, "status": "queued", "min": null, "first": null}, {"n": 64, "r": 16, "t": 4, "status": "queued", "min": null, "first": null}, {"n": 64, "r": 32, "t": 2, "status": "queued", "min": null, "first": null}, {"n": 64, "r": 64, "t": 1, "status": "done", "min": 2.332, "first": 0.513}, {"n": 128, "r": 1, "t": 128, "status": "done", "min": 3.333, "first": 1.308}, {"n": 128, "r": 2, "t": 64, "status": "queued", "min": null, "first": null}, {"n": 128, "r": 4, "t": 32, "status": "queued", "min": null, "first": null}, {"n": 128, "r": 8, "t": 16, "status": "queued", "min": null, "first": null}, {"n": 128, "r": 16, "t": 8, "status": "queued", "min": null, "first": null}, {"n": 128, "r": 32, "t": 4, "status": "queued", "min": null, "first": null}, {"n": 128, "r": 64, "t": 2, "status": "queued", "min": null, "first": null}, {"n": 128, "r": 128, "t": 1, "status": "done", "min": 1.585, "first": 0.327}]};
 const tip = document.getElementById('tip');
 const el = (t, a = {}, txt) => { const e = document.createElement(t);
   for (const [k, v] of Object.entries(a)) e.setAttribute(k, v);
@@ -196,4 +212,74 @@ for (const n of [1, 2, 4, 8, 16, 32, 64, 128]) {
   tb.append(tr);
 }
 t.append(tb);
+// hybrid layouts
+(function hybrid() {
+  const H = D.hyb, NS = [4, 8, 16, 32, 64, 128];
+  const ccol = n => `var(--c${NS.indexOf(n)})`;
+  const lg = document.getElementById('hlegend');
+  for (const n of NS) { const li = el('li'), i = el('i'); i.style.background = ccol(n);
+    li.append(i, document.createTextNode(`${n} cores`)); lg.append(li); }
+  const pts = H.filter(h => h.status === 'done');
+  const host = document.getElementById('chyb');
+  if (!pts.length) host.append(el('p', {class: 'foot'}, 'No finished runs yet.'));
+  else {
+    const W = 720, Hh = 380, padL = 52, padR = 70, padT = 10, padB = 40;
+    const X = t => padL + (W - padL - padR) * Math.log2(t) / 7;
+    const ys = pts.map(p => p.min);
+    const ymin = Math.pow(10, Math.floor(Math.log10(Math.min(...ys))));
+    const ymax = Math.pow(10, Math.ceil(Math.log10(Math.max(...ys))));
+    const Y = v => padT + (Hh - padT - padB) * (1 - (Math.log10(v) - Math.log10(ymin)) / (Math.log10(ymax) - Math.log10(ymin)));
+    const svg = sv('svg', {viewBox: `0 0 ${W} ${Hh}`, role: 'img',
+      'aria-label': 'Minutes per maximum timestep against threads per rank, one line per core count'});
+    for (let d = ymin; d <= ymax * 1.0001; d *= 10) for (const m of [1, 2, 5]) { const v = d * m;
+      if (v > ymax * 1.0001) continue;
+      svg.append(sv('line', {class: 'grid', x1: padL, x2: W - padR, y1: Y(v), y2: Y(v)}));
+      svg.append(sv('text', {class: 'axis', x: padL - 6, y: Y(v) + 4, 'text-anchor': 'end'}, String(v))); }
+    for (let k = 0; k <= 7; k++) svg.append(sv('text', {class: 'axis', x: X(2 ** k), y: Hh - padB + 16,
+      'text-anchor': 'middle'}, String(2 ** k)));
+    svg.append(sv('text', {class: 'axis', x: padL + (W - padL - padR) / 2, y: Hh - 4, 'text-anchor': 'middle'},
+      'OpenMP threads per MPI rank (log scale; left end pure MPI, right end pure OpenMP)'));
+    for (const n of NS) {
+      const ps = pts.filter(p => p.n === n).sort((a, b) => a.t - b.t);
+      if (!ps.length) continue;
+      if (ps.length > 1) svg.append(sv('path', {d: ps.map((p, i) => `${i ? 'L' : 'M'}${X(p.t)},${Y(p.min)}`).join(' '),
+        fill: 'none', stroke: ccol(n), 'stroke-width': 2}));
+      const last = ps[ps.length - 1];
+      svg.append(sv('text', {class: 'axis', x: X(last.t) + 8, y: Y(last.min) + 4}, `${n} cores`));
+      const best = ps.reduce((a, b) => b.min < a.min ? b : a);
+      for (const p of ps) {
+        const c = sv('circle', {class: 'pt', cx: X(p.t), cy: Y(p.min), r: p === best ? 6 : 4.5, fill: ccol(n), tabindex: 0,
+          'aria-label': `${p.r} ranks x ${p.t} threads ${p.min} minutes`});
+        const rows = () => [{cls: 'v', text: `${p.min.toFixed(2)} min per dtmax`},
+          {cls: 'k', text: `${p.r} rank${p.r > 1 ? 's' : ''} \u00d7 ${p.t} thread${p.t > 1 ? 's' : ''} = ${n} cores`},
+          {cls: 'k', text: `first time around ${p.first !== null ? p.first.toFixed(2) : '?'} min`},
+          ...(p === best ? [{cls: 'k', text: `fastest layout for ${n} cores`}] : [])];
+        c.addEventListener('pointermove', ev => showTip(ev, rows()));
+        c.addEventListener('focus', ev => showTip(ev, rows()));
+        c.addEventListener('pointerleave', hideTip); c.addEventListener('blur', hideTip);
+        svg.append(c);
+      }
+    }
+    host.append(svg);
+  }
+  const tt = document.getElementById('thyb');
+  const th = el('thead'), hr = el('tr'); hr.append(el('th', {}, 'Cores'));
+  for (let k = 0; k <= 7; k++) { const c = el('th', {}, String(2 ** k)); c.append(el('small', {}, 'threads/rank')); hr.append(c); }
+  th.append(hr); tt.append(th);
+  const tb2 = el('tbody');
+  for (const n of NS) {
+    const tr = el('tr'); tr.append(el('td', {}, String(n)));
+    const row = H.filter(h => h.n === n);
+    const dn = row.filter(h => h.status === 'done');
+    const best = dn.length ? dn.reduce((a, b) => b.min < a.min ? b : a) : null;
+    for (let k = 0; k <= 7; k++) {
+      const h = row.find(x => x.t === 2 ** k);
+      if (!h) { tr.append(el('td', {class: 'na'}, '')); continue; }
+      tr.append(h.status === 'done' ? el('td', h === best ? {class: 'best'} : {}, h.min.toFixed(2))
+                                    : el('td', {class: 'na'}, h.status));
+    }
+    tb2.append(tr);
+  }
+  tt.append(tb2);
+})();
 </script></main></body></html>
