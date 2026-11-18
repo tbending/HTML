@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>10M strong scaling</title>
+<style>
+:root{color-scheme:light;--surface:#fcfcfb;--ink:#0b0b0b;--ink2:#52514e;
+ --ink3:#7a7974;--grid:#e4e3df;--rule:#d6d5d0;--tip:#ffffff;
+ --omp:#2a78d6;--mpi:#eb6834;--ideal:#9a998f}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+ color-scheme:dark;--surface:#1a1a19;--ink:#f0efec;--ink2:#c3c2b7;
+ --ink3:#9a998f;--grid:#2e2e2c;--rule:#3a3a37;--tip:#262624;
+ --omp:#3987e5;--mpi:#d95926;--ideal:#7a7974}}
+:root[data-theme="dark"]{color-scheme:dark;--surface:#1a1a19;--ink:#f0efec;
+ --ink2:#c3c2b7;--ink3:#9a998f;--grid:#2e2e2c;--rule:#3a3a37;--tip:#262624;
+ --omp:#3987e5;--mpi:#d95926;--ideal:#7a7974}
+body{margin:0;background:var(--surface);color:var(--ink);
+ font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:24px 16px 48px}
+nav.crumb{font-size:13px;margin:0 0 10px}
+nav.crumb a{color:var(--ink2)}
+nav.crumb a::before{content:"\2190  "}
+h1{font-size:20px;font-weight:600;margin:0 0 4px}
+h2{font-size:15px;font-weight:600;margin:32px 0 8px}
+p.sub{color:var(--ink2);margin:0 0 16px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;margin:16px 0 8px;
+ padding:0;list-style:none;color:var(--ink2);font-size:13px}
+.legend li{display:flex;align-items:center;gap:6px}
+.legend i{width:14px;height:3px;border-radius:2px;display:inline-block}
+.legend i.dash{background:none!important;border-top:2px dashed var(--ideal);height:0}
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+@media (max-width:760px){.charts{grid-template-columns:1fr}}
+.charts h3{font-size:13px;font-weight:600;margin:0 0 4px;color:var(--ink2)}
+svg{display:block;width:100%;height:auto;overflow:visible}
+svg text{fill:var(--ink);font-size:12px}
+svg .axis{fill:var(--ink3);font-size:11px}
+svg .grid{stroke:var(--grid);stroke-width:1}
+svg .ideal{stroke:var(--ideal);stroke-width:1.5;stroke-dasharray:5 4;fill:none}
+svg circle.pt{stroke:var(--surface);stroke-width:2;cursor:default}
+svg circle.pt:hover,svg circle.pt:focus{stroke:var(--ink);outline:none}
+#tip{position:fixed;pointer-events:none;background:var(--tip);color:var(--ink);
+ border:1px solid var(--rule);border-radius:8px;padding:8px 10px;
+ box-shadow:0 4px 16px rgba(0,0,0,.18);font-size:13px;max-width:320px;
+ opacity:0;transition:opacity .08s}
+#tip .v{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
+#tip .k{color:var(--ink2)}
+.wrap{overflow-x:auto}
+table{border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:13px;min-width:640px}
+th,td{padding:5px 10px;text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+thead th{color:var(--ink2);font-weight:600;border-bottom:1px solid var(--rule);vertical-align:bottom}
+thead th small{display:block;font-weight:400;color:var(--ink3)}
+tbody tr+tr td{border-top:1px solid var(--grid)}
+td.na{color:var(--ink3)}
+.foot{color:var(--ink3);font-size:12px;margin-top:6px}
+</style></head><body><main>
+<nav class="crumb"><a href="index.html">Orion timing pages</a></nav>
+<h1>10M particle strong scaling</h1>
+<p class="sub">The standard 10M Orion start (the 10M problem of all the
+recent tests), one maximum timestep, on one 128-core socket of mad11 (Intel
+Xeon 6756E, memory bound to that socket), one run at a time. Pure OpenMP: an
+OpenMP-only build, one process with N threads. Pure MPI: N ranks with one
+thread each. Code: thin-timers (all thin-substep changes, exact switches only:
+SINKONCE, INOSINKFAST, THINCUT). Hover or focus a point for its values.</p>
+<ul class="legend" id="legend"></ul>
+<div class="charts">
+<div><h3>Minutes for one maximum timestep</h3><div id="ctime"></div></div>
+<div><h3>Parallel efficiency (%)</h3><div id="ceff"></div></div>
+</div>
+<p class="foot" id="refnote"></p>
+<h2>All runs</h2>
+<div class="wrap"><table id="tab"></table></div>
+<p class="foot">Step: the &ldquo;time used&rdquo; of the maximum timestep
+(clONC log), which includes the first time around. First time around: the
+full evaluation of all particles at the start of the step. Substeps: step
+minus first time around. Efficiency = T(ref) &times; cores(ref) / (T &times;
+cores).</p>
+<div id="tip" role="tooltip"></div>
+<script>
+const D = {"rows": [{"mode": "omp", "n": 1, "status": "queued", "min": null, "first": null}, {"mode": "omp", "n": 2, "status": "queued", "min": null, "first": null}, {"mode": "omp", "n": 4, "status": "queued", "min": null, "first": null}, {"mode": "omp", "n": 8, "status": "queued", "min": null, "first": null}, {"mode": "omp", "n": 16, "status": "done", "min": 9.247, "first": 3.688}, {"mode": "omp", "n": 32, "status": "done", "min": 5.294, "first": 2.106}, {"mode": "omp", "n": 64, "status": "done", "min": 3.909, "first": 1.577}, {"mode": "omp", "n": 128, "status": "done", "min": 3.333, "first": 1.308}, {"mode": "mpi", "n": 1, "status": "queued", "min": null, "first": null, "shared": true}, {"mode": "mpi", "n": 2, "status": "queued", "min": null, "first": null}, {"mode": "mpi", "n": 4, "status": "queued", "min": null, "first": null}, {"mode": "mpi", "n": 8, "status": "running", "min": null, "first": null}, {"mode": "mpi", "n": 16, "status": "done", "min": 7.786, "first": 1.881}, {"mode": "mpi", "n": 32, "status": "done", "min": 4.001, "first": 0.984}, {"mode": "mpi", "n": 64, "status": "done", "min": 2.332, "first": 0.513}, {"mode": "mpi", "n": 128, "status": "done", "min": 1.585, "first": 0.327}]};
+const tip = document.getElementById('tip');
+const el = (t, a = {}, txt) => { const e = document.createElement(t);
+  for (const [k, v] of Object.entries(a)) e.setAttribute(k, v);
+  if (txt !== undefined) e.textContent = txt; return e; };
+const sv = (t, a = {}, txt) => {
+  const e = document.createElementNS('http://www.w3.org/2000/svg', t);
+  for (const [k, v] of Object.entries(a)) e.setAttribute(k, v);
+  if (txt !== undefined) e.textContent = txt; return e; };
+function showTip(evt, rows) {
+  tip.replaceChildren();
+  for (const r of rows) tip.append(el('div', {class: r.cls || ''}, r.text));
+  tip.style.opacity = 1;
+  let x, y;
+  if (evt.clientX !== undefined && evt.type !== 'focus') { x = evt.clientX; y = evt.clientY; }
+  else { const b = evt.target.getBoundingClientRect(); x = b.left + b.width / 2; y = b.top; }
+  let left = x + 14, top = y - tip.offsetHeight - 10;
+  if (left + tip.offsetWidth > innerWidth - 8) left = x - tip.offsetWidth - 14;
+  if (top < 8) top = y + 18;
+  tip.style.left = left + 'px'; tip.style.top = top + 'px';
+}
+const hideTip = () => { tip.style.opacity = 0; };
+const SER = [{key: 'omp', label: 'Pure OpenMP (1 process, N threads)', c: 'var(--omp)'},
+             {key: 'mpi', label: 'Pure MPI (N ranks, 1 thread)', c: 'var(--mpi)'}];
+const done = m => D.rows.filter(r => r.mode === m && r.status === 'done');
+// reference: 1-core run if finished, else the fewest-core finished run
+const one = D.rows.find(r => r.mode === 'omp' && r.n === 1 && r.status === 'done');
+const ref = m => one || done(m)[0];
+const eff = r => { const f = ref(r.mode); return f ? 100 * f.min * f.n / (r.min * r.n) : null; };
+const lg = document.getElementById('legend');
+for (const s of SER) { const li = el('li'), i = el('i'); i.style.background = s.c;
+  li.append(i, document.createTextNode(s.label)); lg.append(li); }
+{ const li = el('li'), i = el('i', {class: 'dash'});
+  li.append(i, document.createTextNode('ideal scaling from the reference run')); lg.append(li); }
+
+function chart(host, yOf, yLog, yLabel, ideal) {
+  const W = 520, H = 340, padL = 52, padR = 12, padT = 10, padB = 40;
+  const pts = SER.flatMap(s => done(s.key).map(r => ({s, r, y: yOf(r)}))).filter(p => p.y !== null);
+  if (!pts.length) { host.append(el('p', {class: 'foot'}, 'No finished runs yet.')); return; }
+  const lx = n => Math.log2(n);
+  const X = n => padL + (W - padL - padR) * lx(n) / 7;
+  let ymin, ymax, Y, ticks;
+  if (yLog) {
+    const ys = pts.map(p => p.y).concat(ideal ? SER.flatMap(s => { const f = ref(s.key);
+      return f ? [f.min * f.n / 128] : []; }) : []);
+    ymin = Math.pow(10, Math.floor(Math.log10(Math.min(...ys))));
+    ymax = Math.pow(10, Math.ceil(Math.log10(Math.max(...ys))));
+    Y = v => padT + (H - padT - padB) * (1 - (Math.log10(v) - Math.log10(ymin)) / (Math.log10(ymax) - Math.log10(ymin)));
+    ticks = [];
+    for (let d = ymin; d <= ymax * 1.0001; d *= 10) for (const m of [1, 2, 5]) if (d * m <= ymax * 1.0001) ticks.push(d * m);
+  } else {
+    ymin = 0; ymax = Math.max(100, ...pts.map(p => p.y)); ymax = Math.ceil(ymax / 20) * 20;
+    Y = v => padT + (H - padT - padB) * (1 - v / ymax);
+    ticks = []; for (let v = 0; v <= ymax; v += 20) ticks.push(v);
+  }
+  const svg = sv('svg', {viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': yLabel + ' against cores'});
+  for (const t of ticks) {
+    svg.append(sv('line', {class: 'grid', x1: padL, x2: W - padR, y1: Y(t), y2: Y(t)}));
+    svg.append(sv('text', {class: 'axis', x: padL - 6, y: Y(t) + 4, 'text-anchor': 'end'},
+      t >= 1 ? String(t) : t.toPrecision(1)));
+  }
+  for (let k = 0; k <= 7; k++) {
+    const n = 2 ** k;
+    svg.append(sv('text', {class: 'axis', x: X(n), y: H - padB + 16, 'text-anchor': 'middle'}, String(n)));
+  }
+  svg.append(sv('text', {class: 'axis', x: padL + (W - padL - padR) / 2, y: H - 4, 'text-anchor': 'middle'}, 'cores (log scale)'));
+  if (ideal) for (const s of SER) { const f = ref(s.key); if (!f) continue;
+    const d = `M${X(f.n)},${Y(f.min)} L${X(128)},${Y(f.min * f.n / 128)}`;
+    svg.append(sv('path', {class: 'ideal', d})); }
+  if (!yLog) svg.append(sv('line', {class: 'ideal', x1: padL, x2: W - padR, y1: Y(100), y2: Y(100)}));
+  for (const s of SER) {
+    const ps = pts.filter(p => p.s === s).sort((a, b) => a.r.n - b.r.n);
+    if (ps.length > 1) svg.append(sv('path', {d: ps.map((p, i) => `${i ? 'L' : 'M'}${X(p.r.n)},${Y(p.y)}`).join(' '),
+      fill: 'none', stroke: s.c, 'stroke-width': 2}));
+    for (const p of ps) {
+      const c = sv('circle', {class: 'pt', cx: X(p.r.n), cy: Y(p.y), r: 5, fill: s.c, tabindex: 0,
+        'aria-label': `${s.key} ${p.r.n} cores ${p.r.min} minutes`});
+      const e = eff(p.r);
+      const rows = () => [{cls: 'v', text: `${p.r.min.toFixed(2)} min per dtmax`},
+        {cls: 'k', text: `${s.label.split(' (')[0]}, ${p.r.n} core${p.r.n > 1 ? 's' : ''}`},
+        {cls: 'k', text: `first time around ${p.r.first !== null ? p.r.first.toFixed(2) : '?'} min`},
+        ...(e !== null ? [{cls: 'k', text: `efficiency ${e.toFixed(0)} %`}] : [])];
+      c.addEventListener('pointermove', ev => showTip(ev, rows()));
+      c.addEventListener('focus', ev => showTip(ev, rows()));
+      c.addEventListener('pointerleave', hideTip); c.addEventListener('blur', hideTip);
+      svg.append(c);
+    }
+  }
+  host.append(svg);
+}
+chart(document.getElementById('ctime'), r => r.min, true, 'Minutes per maximum timestep', true);
+chart(document.getElementById('ceff'), r => eff(r), false, 'Parallel efficiency', false);
+document.getElementById('refnote').textContent = one
+  ? 'Reference: the 1-core run (the OpenMP-only build, 1 thread), for both series.'
+  : 'The 1-core run has not finished yet: speed-up and efficiency are relative to the finished run with the fewest cores in each series (' +
+    SER.map(s => { const f = ref(s.key); return f ? `${s.key} ${f.n} cores` : `${s.key} none`; }).join(', ') + ').';
+// table
+const t = document.getElementById('tab');
+const th = el('thead'), hr = el('tr');
+for (const [h, s] of [['Cores', ''], ['OpenMP', 'step, min'], ['', 'first time, min'], ['', 'substeps, min'],
+     ['', 'efficiency %'], ['MPI', 'step, min'], ['', 'first time, min'], ['', 'substeps, min'], ['', 'efficiency %']]) {
+  const c = el('th', {}, h); if (s) c.append(el('small', {}, s)); hr.append(c); }
+th.append(hr); t.append(th);
+const tb = el('tbody');
+for (const n of [1, 2, 4, 8, 16, 32, 64, 128]) {
+  const tr = el('tr'); tr.append(el('td', {}, String(n)));
+  for (const m of ['omp', 'mpi']) {
+    const r = D.rows.find(x => x.mode === m && x.n === n);
+    if (r.status !== 'done') {
+      const td = el('td', {class: 'na'}, r.status); tr.append(td);
+      for (let i = 0; i < 3; i++) tr.append(el('td', {class: 'na'}, '–'));
+      continue; }
+    const e = eff(r);
+    for (const v of [r.min.toFixed(2), r.first !== null ? r.first.toFixed(2) : '–',
+         r.first !== null ? (r.min - r.first).toFixed(2) : '–', e !== null ? e.toFixed(0) : '–'])
+      tr.append(el('td', {}, v));
+  }
+  tb.append(tr);
+}
+t.append(tb);
+</script></main></body></html>
