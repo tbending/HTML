@@ -137,11 +137,14 @@ function chart(host, yOf, yLog, yLabel, ideal) {
   if (yLog) {
     const ys = pts.map(p => p.y).concat(ideal ? SER.flatMap(s => { const f = ref(s.key);
       return f ? [f.min * f.n / 128] : []; }) : []);
-    ymin = Math.pow(10, Math.floor(Math.log10(Math.min(...ys))));
-    ymax = Math.pow(10, Math.ceil(Math.log10(Math.max(...ys))));
+    // ticks span the nearest decades (e.g. 1 to 100); the plotted range is
+    // a little wider than both ticks and data, so no point or line is cut
+    const lo = Math.min(...ys), hi = Math.max(...ys);
+    const tmin = Math.pow(10, Math.round(Math.log10(lo))), tmax = Math.pow(10, Math.round(Math.log10(hi)));
+    ymin = Math.min(tmin, lo) / 1.15; ymax = Math.max(tmax, hi) * 1.15;
     Y = v => padT + (H - padT - padB) * (1 - (Math.log10(v) - Math.log10(ymin)) / (Math.log10(ymax) - Math.log10(ymin)));
     ticks = [];
-    for (let d = ymin; d <= ymax * 1.0001; d *= 10) for (const m of [1, 2, 5]) if (d * m <= ymax * 1.0001) ticks.push(d * m);
+    for (let d = tmin; d <= tmax * 1.0001; d *= 10) for (const m of [1, 2, 5]) if (d * m <= tmax * 1.0001) ticks.push(d * m);
   } else {
     ymin = 0; ymax = Math.max(100, ...pts.map(p => p.y)); ymax = Math.ceil(ymax / 20) * 20;
     Y = v => padT + (H - padT - padB) * (1 - v / ymax);
