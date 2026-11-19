@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>10M strong scaling</title>
+<title>10M particle strong scaling</title>
 <style>
 :root{color-scheme:light;--surface:#fcfcfb;--ink:#0b0b0b;--ink2:#52514e;
  --ink3:#7a7974;--grid:#e4e3df;--rule:#d6d5d0;--tip:#ffffff;
@@ -55,7 +55,8 @@ thead th small{display:block;font-weight:400;color:var(--ink3)}
 tbody tr+tr td{border-top:1px solid var(--grid)}
 td.na{color:var(--ink3)}
 td.best{font-weight:600}
-.single{max-width:720px}
+.single{max-width:720px;margin:28px 0 32px}
+.note{border-left:3px solid var(--ink3);padding:6px 12px;margin:12px 0;color:var(--ink2);font-size:14px;max-width:760px}
 .foot{color:var(--ink3);font-size:12px;margin-top:6px}
 </style></head><body><main>
 <nav class="crumb"><a href="index.html">Orion timing pages</a></nav>
@@ -64,8 +65,11 @@ td.best{font-weight:600}
 recent tests), one maximum timestep, on one 128-core socket of mad11 (Intel
 Xeon 6756E, memory bound to that socket), one run at a time. Pure OpenMP: an
 OpenMP-only build, one process with N threads. Pure MPI: N ranks with one
-thread each. Code: thin-timers (all thin-substep changes, exact switches only:
-SINKONCE, INOSINKFAST, THINCUT). Hover or focus a point for its values.</p>
+thread each. Code: thin-timers (all thin-substep changes, exact switches only: SINKONCE, INOSINKFAST, THINCUT). Hover or focus a point for its values.</p>
+<p class="note">Everything on this page runs on a single socket of a single
+node: MPI messages pass through shared memory (Intel MPI with the shm
+provider), never the network fabric. Multi-node runs, such as the 1B runs,
+also pay for the fabric, so their MPI costs are higher than these.</p>
 <ul class="legend" id="legend"></ul>
 <div class="charts">
 <div><h3>Minutes for one maximum timestep</h3><div id="ctime"></div></div>
@@ -83,7 +87,10 @@ cores).</p>
 <p class="sub">For each core count, every power-of-two split between MPI
 ranks and OpenMP threads per rank, from pure MPI (1 thread per rank) to pure
 OpenMP (1 rank). Each rank runs on its own block of consecutive cores, its
-threads inside that block.</p>
+threads inside that block. Each line runs from pure MPI on the left to
+pure OpenMP (1 rank) at the right edge, so the top axis (MPI ranks) holds for
+every line; the bottom axis gives the threads per rank of the 128-core
+line.</p>
 <ul class="legend" id="hlegend"></ul>
 <div class="single"><div id="chyb"></div></div>
 <div class="wrap"><table id="thyb"></table></div>
@@ -226,32 +233,43 @@ t.append(tb);
   const host = document.getElementById('chyb');
   if (!pts.length) host.append(el('p', {class: 'foot'}, 'No finished runs yet.'));
   else {
-    const W = 720, Hh = 380, padL = 52, padR = 70, padT = 10, padB = 40;
-    const X = t => padL + (W - padL - padR) * Math.log2(t) / 7;
+    const W = 720, Hh = 430, padL = 52, padR = 76, padT = 48, padB = 44;
+    // x = MPI ranks, 128 on the left to 1 (pure OpenMP) on the right, exact
+    // for every line (top axis); the bottom axis is threads per rank for the
+    // 128-core line (threads = cores / ranks)
+    const X = r => padL + (W - padL - padR) * (7 - Math.log2(r)) / 7;
     const ys = pts.map(p => p.min);
     const ymin = Math.pow(10, Math.floor(Math.log10(Math.min(...ys))));
     const ymax = Math.pow(10, Math.ceil(Math.log10(Math.max(...ys))));
     const Y = v => padT + (Hh - padT - padB) * (1 - (Math.log10(v) - Math.log10(ymin)) / (Math.log10(ymax) - Math.log10(ymin)));
     const svg = sv('svg', {viewBox: `0 0 ${W} ${Hh}`, role: 'img',
-      'aria-label': 'Minutes per maximum timestep against threads per rank, one line per core count'});
+      'aria-label': 'Minutes per maximum timestep against MPI ranks, one line per core count'});
     for (let d = ymin; d <= ymax * 1.0001; d *= 10) for (const m of [1, 2, 5]) { const v = d * m;
       if (v > ymax * 1.0001) continue;
       svg.append(sv('line', {class: 'grid', x1: padL, x2: W - padR, y1: Y(v), y2: Y(v)}));
       svg.append(sv('text', {class: 'axis', x: padL - 6, y: Y(v) + 4, 'text-anchor': 'end'}, String(v))); }
-    for (let k = 0; k <= 7; k++) svg.append(sv('text', {class: 'axis', x: X(2 ** k), y: Hh - padB + 16,
-      'text-anchor': 'middle'}, String(2 ** k)));
-    svg.append(sv('text', {class: 'axis', x: padL + (W - padL - padR) / 2, y: Hh - 4, 'text-anchor': 'middle'},
-      'OpenMP threads per MPI rank (log scale; left end pure MPI, right end pure OpenMP)'));
+    for (let k = 0; k <= 7; k++) {
+      svg.append(sv('text', {class: 'axis', x: X(128 / 2 ** k), y: Hh - padB + 16,
+        'text-anchor': 'middle'}, String(2 ** k)));
+      svg.append(sv('text', {class: 'axis', x: X(2 ** k), y: padT - 8,
+        'text-anchor': 'middle'}, String(2 ** k)));
+    }
+    svg.append(sv('line', {class: 'grid', x1: padL, x2: W - padR, y1: padT, y2: padT}));
+    svg.append(sv('text', {class: 'axis', x: padL + (W - padL - padR) / 2, y: 14, 'text-anchor': 'middle'},
+      'MPI ranks (log scale; every line: left pure MPI, right end 1 rank = pure OpenMP)'));
+    svg.append(sv('text', {class: 'axis', x: padL + (W - padL - padR) / 2, y: Hh - 6, 'text-anchor': 'middle'},
+      'OpenMP threads per rank on the 128-core line (other lines: threads = cores / ranks)'));
+    const labs = [];   // core-count labels, right of the plot at each line's right-hand point
     for (const n of NS) {
-      const ps = pts.filter(p => p.n === n).sort((a, b) => a.t - b.t);
+      const ps = pts.filter(p => p.n === n).sort((a, b) => b.r - a.r);
       if (!ps.length) continue;
-      if (ps.length > 1) svg.append(sv('path', {d: ps.map((p, i) => `${i ? 'L' : 'M'}${X(p.t)},${Y(p.min)}`).join(' '),
+      if (ps.length > 1) svg.append(sv('path', {d: ps.map((p, i) => `${i ? 'L' : 'M'}${X(p.r)},${Y(p.min)}`).join(' '),
         fill: 'none', stroke: ccol(n), 'stroke-width': 2}));
-      const last = ps[ps.length - 1];
-      svg.append(sv('text', {class: 'axis', x: X(last.t) + 8, y: Y(last.min) + 4}, `${n} cores`));
+      const last = ps[ps.length - 1];   // fewest ranks: the right-hand point
+      if (last.r === 1) labs.push({n, y: Y(last.min)});
       const best = ps.reduce((a, b) => b.min < a.min ? b : a);
       for (const p of ps) {
-        const c = sv('circle', {class: 'pt', cx: X(p.t), cy: Y(p.min), r: p === best ? 6 : 4.5, fill: ccol(n), tabindex: 0,
+        const c = sv('circle', {class: 'pt', cx: X(p.r), cy: Y(p.min), r: p === best ? 6 : 4.5, fill: ccol(n), tabindex: 0,
           'aria-label': `${p.r} ranks x ${p.t} threads ${p.min} minutes`});
         const rows = () => [{cls: 'v', text: `${p.min.toFixed(2)} min per dtmax`},
           {cls: 'k', text: `${p.r} rank${p.r > 1 ? 's' : ''} \u00d7 ${p.t} thread${p.t > 1 ? 's' : ''} = ${n} cores`},
@@ -262,6 +280,12 @@ t.append(tb);
         c.addEventListener('pointerleave', hideTip); c.addEventListener('blur', hideTip);
         svg.append(c);
       }
+    }
+    labs.sort((a, b) => a.y - b.y);
+    for (let i = 1; i < labs.length; i++) labs[i].y = Math.max(labs[i].y, labs[i - 1].y + 13);
+    for (const l of labs) {   // short colour tick, then the label in text ink
+      svg.append(sv('line', {x1: W - padR + 4, x2: W - padR + 12, y1: l.y, y2: l.y, stroke: ccol(l.n), 'stroke-width': 2}));
+      svg.append(sv('text', {class: 'axis', x: W - padR + 16, y: l.y + 4}, `${l.n} cores`));
     }
     host.append(svg);
   }
