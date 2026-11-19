@@ -30,7 +30,10 @@ p.sub{color:var(--ink2);margin:0 0 16px}
 .legend li{display:flex;align-items:center;gap:6px}
 .legend i{width:14px;height:3px;border-radius:2px;display:inline-block}
 .legend i.dash{background:none!important;border-top:2px dashed var(--ideal);height:0}
-.charts{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:28px 24px}
+.ph{border:1px dashed var(--rule);border-radius:6px;min-height:220px;display:flex;
+ align-items:center;justify-content:center;color:var(--ink3);font-size:13px;
+ padding:16px;text-align:center}
 @media (max-width:760px){.charts{grid-template-columns:1fr}}
 .charts h3{font-size:13px;font-weight:600;margin:0 0 4px;color:var(--ink2)}
 svg{display:block;width:100%;height:auto;overflow:visible}
@@ -72,9 +75,16 @@ provider), never the network fabric. Multi-node runs, such as the 1B runs,
 also pay for the fabric, so their MPI costs are higher than these.</p>
 <ul class="legend" id="legend"></ul>
 <div class="charts">
-<div><h3>Minutes for one maximum timestep</h3><div id="ctime"></div></div>
-<div><h3>Parallel efficiency (%)</h3><div id="ceff"></div></div>
+<div><h3>Minutes for one maximum timestep: this code (thin-timers)</h3><div id="ctime"></div></div>
+<div><h3>Minutes for one maximum timestep: main branch (bace503)</h3><div id="ctime_m"></div></div>
+<div><h3>Parallel efficiency (%): this code (thin-timers)</h3><div id="ceff"></div></div>
+<div><h3>Parallel efficiency (%): main branch (bace503)</h3><div id="ceff_m"></div></div>
 </div>
+<p class="foot">Main branch: the older code (no domain checking, none of the
+thin-substep, RT or OpenMP changes), same build settings, dumps and input;
+MPI with the SENDRECV path, which was faster on main in an 8 &times; 16 test
+(18.5 against 19.8 min). Each pair of plots shares its y axis so the two
+codes can be compared directly.</p>
 <p class="foot" id="refnote"></p>
 <h2>All runs</h2>
 <div class="wrap"><table id="tab"></table></div>
@@ -99,7 +109,7 @@ core count in bold. Rows: cores; columns: threads per rank (ranks = cores /
 threads).</p>
 <div id="tip" role="tooltip"></div>
 <script>
-const D = {"rows": [{"mode": "omp", "n": 1, "status": "done", "min": 102.352, "first": 45.861}, {"mode": "omp", "n": 2, "status": "done", "min": 55.356, "first": 24.119}, {"mode": "omp", "n": 4, "status": "done", "min": 29.043, "first": 12.706}, {"mode": "omp", "n": 8, "status": "done", "min": 16.122, "first": 6.653}, {"mode": "omp", "n": 16, "status": "done", "min": 9.247, "first": 3.688}, {"mode": "omp", "n": 32, "status": "done", "min": 5.294, "first": 2.106}, {"mode": "omp", "n": 64, "status": "done", "min": 3.909, "first": 1.577}, {"mode": "omp", "n": 128, "status": "done", "min": 3.333, "first": 1.308}, {"mode": "mpi", "n": 1, "status": "done", "min": 102.352, "first": 45.861, "shared": true}, {"mode": "mpi", "n": 2, "status": "done", "min": 44.313, "first": 12.369}, {"mode": "mpi", "n": 4, "status": "done", "min": 27.574, "first": 6.979}, {"mode": "mpi", "n": 8, "status": "done", "min": 13.1, "first": 3.294}, {"mode": "mpi", "n": 16, "status": "done", "min": 7.657, "first": 1.927}, {"mode": "mpi", "n": 32, "status": "done", "min": 4.001, "first": 0.984}, {"mode": "mpi", "n": 64, "status": "done", "min": 2.332, "first": 0.513}, {"mode": "mpi", "n": 128, "status": "done", "min": 1.585, "first": 0.327}], "hyb": [{"n": 4, "r": 1, "t": 4, "status": "done", "min": 29.043, "first": 12.706}, {"n": 4, "r": 2, "t": 2, "status": "done", "min": 25.037, "first": 7.074}, {"n": 4, "r": 4, "t": 1, "status": "done", "min": 27.574, "first": 6.979}, {"n": 8, "r": 1, "t": 8, "status": "done", "min": 16.122, "first": 6.653}, {"n": 8, "r": 2, "t": 4, "status": "done", "min": 13.976, "first": 3.561}, {"n": 8, "r": 4, "t": 2, "status": "done", "min": 13.805, "first": 3.659}, {"n": 8, "r": 8, "t": 1, "status": "done", "min": 13.1, "first": 3.294}, {"n": 16, "r": 1, "t": 16, "status": "done", "min": 9.247, "first": 3.688}, {"n": 16, "r": 2, "t": 8, "status": "done", "min": 8.081, "first": 2.086}, {"n": 16, "r": 4, "t": 4, "status": "done", "min": 7.459, "first": 1.897}, {"n": 16, "r": 8, "t": 2, "status": "done", "min": 7.426, "first": 1.806}, {"n": 16, "r": 16, "t": 1, "status": "done", "min": 7.657, "first": 1.927}, {"n": 32, "r": 1, "t": 32, "status": "done", "min": 5.294, "first": 2.106}, {"n": 32, "r": 2, "t": 16, "status": "done", "min": 4.617, "first": 1.164}, {"n": 32, "r": 4, "t": 8, "status": "done", "min": 4.237, "first": 1.033}, {"n": 32, "r": 8, "t": 4, "status": "done", "min": 3.976, "first": 0.991}, {"n": 32, "r": 16, "t": 2, "status": "done", "min": 4.248, "first": 0.999}, {"n": 32, "r": 32, "t": 1, "status": "done", "min": 4.001, "first": 0.984}, {"n": 64, "r": 1, "t": 64, "status": "done", "min": 3.909, "first": 1.577}, {"n": 64, "r": 2, "t": 32, "status": "done", "min": 3.141, "first": 0.84}, {"n": 64, "r": 4, "t": 16, "status": "done", "min": 3.144, "first": 0.646}, {"n": 64, "r": 8, "t": 8, "status": "done", "min": 2.382, "first": 0.575}, {"n": 64, "r": 16, "t": 4, "status": "done", "min": 2.349, "first": 0.532}, {"n": 64, "r": 32, "t": 2, "status": "done", "min": 2.317, "first": 0.509}, {"n": 64, "r": 64, "t": 1, "status": "done", "min": 2.332, "first": 0.513}, {"n": 128, "r": 1, "t": 128, "status": "done", "min": 3.333, "first": 1.308}, {"n": 128, "r": 2, "t": 64, "status": "done", "min": 2.596, "first": 0.839}, {"n": 128, "r": 4, "t": 32, "status": "done", "min": 1.894, "first": 0.542}, {"n": 128, "r": 8, "t": 16, "status": "done", "min": 1.604, "first": 0.397}, {"n": 128, "r": 16, "t": 8, "status": "done", "min": 1.556, "first": 0.351}, {"n": 128, "r": 32, "t": 4, "status": "done", "min": 1.378, "first": 0.293}, {"n": 128, "r": 64, "t": 2, "status": "done", "min": 1.462, "first": 0.29}, {"n": 128, "r": 128, "t": 1, "status": "done", "min": 1.585, "first": 0.327}]};
+const D = {"rows": [{"mode": "omp", "n": 1, "status": "done", "min": 102.352, "first": 45.861}, {"mode": "omp", "n": 2, "status": "done", "min": 55.356, "first": 24.119}, {"mode": "omp", "n": 4, "status": "done", "min": 29.043, "first": 12.706}, {"mode": "omp", "n": 8, "status": "done", "min": 16.122, "first": 6.653}, {"mode": "omp", "n": 16, "status": "done", "min": 9.247, "first": 3.688}, {"mode": "omp", "n": 32, "status": "done", "min": 5.294, "first": 2.106}, {"mode": "omp", "n": 64, "status": "done", "min": 3.909, "first": 1.577}, {"mode": "omp", "n": 128, "status": "done", "min": 3.333, "first": 1.308}, {"mode": "mpi", "n": 1, "status": "done", "min": 102.352, "first": 45.861, "shared": true}, {"mode": "mpi", "n": 2, "status": "done", "min": 44.313, "first": 12.369}, {"mode": "mpi", "n": 4, "status": "done", "min": 27.574, "first": 6.979}, {"mode": "mpi", "n": 8, "status": "done", "min": 13.1, "first": 3.294}, {"mode": "mpi", "n": 16, "status": "done", "min": 7.657, "first": 1.927}, {"mode": "mpi", "n": 32, "status": "done", "min": 4.001, "first": 0.984}, {"mode": "mpi", "n": 64, "status": "done", "min": 2.332, "first": 0.513}, {"mode": "mpi", "n": 128, "status": "done", "min": 1.585, "first": 0.327}], "hyb": [{"n": 4, "r": 1, "t": 4, "status": "done", "min": 29.043, "first": 12.706}, {"n": 4, "r": 2, "t": 2, "status": "done", "min": 25.037, "first": 7.074}, {"n": 4, "r": 4, "t": 1, "status": "done", "min": 27.574, "first": 6.979}, {"n": 8, "r": 1, "t": 8, "status": "done", "min": 16.122, "first": 6.653}, {"n": 8, "r": 2, "t": 4, "status": "done", "min": 13.976, "first": 3.561}, {"n": 8, "r": 4, "t": 2, "status": "done", "min": 13.805, "first": 3.659}, {"n": 8, "r": 8, "t": 1, "status": "done", "min": 13.1, "first": 3.294}, {"n": 16, "r": 1, "t": 16, "status": "done", "min": 9.247, "first": 3.688}, {"n": 16, "r": 2, "t": 8, "status": "done", "min": 8.081, "first": 2.086}, {"n": 16, "r": 4, "t": 4, "status": "done", "min": 7.459, "first": 1.897}, {"n": 16, "r": 8, "t": 2, "status": "done", "min": 7.426, "first": 1.806}, {"n": 16, "r": 16, "t": 1, "status": "done", "min": 7.657, "first": 1.927}, {"n": 32, "r": 1, "t": 32, "status": "done", "min": 5.294, "first": 2.106}, {"n": 32, "r": 2, "t": 16, "status": "done", "min": 4.617, "first": 1.164}, {"n": 32, "r": 4, "t": 8, "status": "done", "min": 4.237, "first": 1.033}, {"n": 32, "r": 8, "t": 4, "status": "done", "min": 3.976, "first": 0.991}, {"n": 32, "r": 16, "t": 2, "status": "done", "min": 4.248, "first": 0.999}, {"n": 32, "r": 32, "t": 1, "status": "done", "min": 4.001, "first": 0.984}, {"n": 64, "r": 1, "t": 64, "status": "done", "min": 3.909, "first": 1.577}, {"n": 64, "r": 2, "t": 32, "status": "done", "min": 3.141, "first": 0.84}, {"n": 64, "r": 4, "t": 16, "status": "done", "min": 3.144, "first": 0.646}, {"n": 64, "r": 8, "t": 8, "status": "done", "min": 2.382, "first": 0.575}, {"n": 64, "r": 16, "t": 4, "status": "done", "min": 2.349, "first": 0.532}, {"n": 64, "r": 32, "t": 2, "status": "done", "min": 2.317, "first": 0.509}, {"n": 64, "r": 64, "t": 1, "status": "done", "min": 2.332, "first": 0.513}, {"n": 128, "r": 1, "t": 128, "status": "done", "min": 3.333, "first": 1.308}, {"n": 128, "r": 2, "t": 64, "status": "done", "min": 2.596, "first": 0.839}, {"n": 128, "r": 4, "t": 32, "status": "done", "min": 1.894, "first": 0.542}, {"n": 128, "r": 8, "t": 16, "status": "done", "min": 1.604, "first": 0.397}, {"n": 128, "r": 16, "t": 8, "status": "done", "min": 1.556, "first": 0.351}, {"n": 128, "r": 32, "t": 4, "status": "done", "min": 1.378, "first": 0.293}, {"n": 128, "r": 64, "t": 2, "status": "done", "min": 1.462, "first": 0.29}, {"n": 128, "r": 128, "t": 1, "status": "done", "min": 1.585, "first": 0.327}], "main": [{"mode": "omp", "n": 1, "status": "running", "min": null, "first": null}, {"mode": "omp", "n": 2, "status": "queued", "min": null, "first": null}, {"mode": "omp", "n": 4, "status": "queued", "min": null, "first": null}, {"mode": "omp", "n": 8, "status": "queued", "min": null, "first": null}, {"mode": "omp", "n": 16, "status": "queued", "min": null, "first": null}, {"mode": "omp", "n": 32, "status": "queued", "min": null, "first": null}, {"mode": "omp", "n": 64, "status": "queued", "min": null, "first": null}, {"mode": "omp", "n": 128, "status": "queued", "min": null, "first": null}, {"mode": "mpi", "n": 1, "status": "running", "min": null, "first": null, "shared": true}, {"mode": "mpi", "n": 2, "status": "queued", "min": null, "first": null}, {"mode": "mpi", "n": 4, "status": "queued", "min": null, "first": null}, {"mode": "mpi", "n": 8, "status": "queued", "min": null, "first": null}, {"mode": "mpi", "n": 16, "status": "queued", "min": null, "first": null}, {"mode": "mpi", "n": 32, "status": "queued", "min": null, "first": null}, {"mode": "mpi", "n": 64, "status": "queued", "min": null, "first": null}, {"mode": "mpi", "n": 128, "status": "queued", "min": null, "first": null}]};
 const tip = document.getElementById('tip');
 const el = (t, a = {}, txt) => { const e = document.createElement(t);
   for (const [k, v] of Object.entries(a)) e.setAttribute(k, v);
@@ -123,27 +133,47 @@ function showTip(evt, rows) {
 const hideTip = () => { tip.style.opacity = 0; };
 const SER = [{key: 'omp', label: 'Pure OpenMP (1 process, N threads)', c: 'var(--omp)'},
              {key: 'mpi', label: 'Pure MPI (N ranks, 1 thread)', c: 'var(--mpi)'}];
-const done = m => D.rows.filter(r => r.mode === m && r.status === 'done');
-// reference: 1-core run if finished, else the fewest-core finished run
-const one = D.rows.find(r => r.mode === 'omp' && r.n === 1 && r.status === 'done');
-const ref = m => one || done(m)[0];
-const eff = r => { const f = ref(r.mode); return f ? 100 * f.min * f.n / (r.min * r.n) : null; };
+// one model per code: finished runs, reference run (the 1-core run if
+// finished, else the fewest-core finished run of each series), efficiency
+function model(R) {
+  const done = m => R.filter(r => r.mode === m && r.status === 'done');
+  const one = R.find(r => r.mode === 'omp' && r.n === 1 && r.status === 'done');
+  const ref = m => one || done(m)[0];
+  const eff = r => { const f = ref(r.mode); return f ? 100 * f.min * f.n / (r.min * r.n) : null; };
+  return {R, done, one, ref, eff};
+}
+const MT = model(D.rows), MM = model(D.main || []);
+const {done, one, ref, eff} = MT;
 const lg = document.getElementById('legend');
 for (const s of SER) { const li = el('li'), i = el('i'); i.style.background = s.c;
   li.append(i, document.createTextNode(s.label)); lg.append(li); }
 { const li = el('li'), i = el('i', {class: 'dash'});
   li.append(i, document.createTextNode('ideal scaling from the reference run')); lg.append(li); }
 
-function chart(host, yOf, yLog, yLabel, ideal) {
+// y values of a model's plotted points (and ideal-line ends), for shared axes
+function yvals(M, yOf, ideal) {
+  const v = SER.flatMap(s => M.done(s.key).map(r => yOf(M, r))).filter(y => y !== null);
+  if (ideal) for (const s of SER) { const f = M.ref(s.key); if (f) v.push(f.min, f.min * f.n / 128); }
+  return v;
+}
+function placeholder(host, M, what) {
+  const n = M.R.filter(r => !r.shared).length, d = M.R.filter(r => !r.shared && r.status === 'done').length;
+  const run = M.R.find(r => r.status === 'running');
+  host.append(el('div', {class: 'ph'}, `${what}: runs in progress, ${d} of ${n} finished` +
+    (run ? ` (now running: ${run.mode === 'omp' ? 'OpenMP' : 'MPI'} ${run.n} core${run.n > 1 ? 's' : ''})` : '') + '.'));
+}
+function chart(host, yOf0, yLog, yLabel, ideal, M = MT, share = [], what = 'This code') {
   const W = 520, H = 340, padL = 52, padR = 12, padT = 10, padB = 40;
+  const {done, ref, eff} = M;
+  const yOf = r => yOf0(M, r);
   const pts = SER.flatMap(s => done(s.key).map(r => ({s, r, y: yOf(r)}))).filter(p => p.y !== null);
-  if (!pts.length) { host.append(el('p', {class: 'foot'}, 'No finished runs yet.')); return; }
+  if (!pts.length) { placeholder(host, M, what); return; }
   const lx = n => Math.log2(n);
   const X = n => padL + (W - padL - padR) * lx(n) / 7;
   let ymin, ymax, Y, ticks;
   if (yLog) {
     const ys = pts.map(p => p.y).concat(ideal ? SER.flatMap(s => { const f = ref(s.key);
-      return f ? [f.min * f.n / 128] : []; }) : []);
+      return f ? [f.min * f.n / 128] : []; }) : []).concat(share);
     // ticks span the nearest decades (e.g. 1 to 100); the plotted range is
     // a little wider than both ticks and data, so no point or line is cut
     const lo = Math.min(...ys), hi = Math.max(...ys);
@@ -153,7 +183,7 @@ function chart(host, yOf, yLog, yLabel, ideal) {
     ticks = [];
     for (let d = tmin; d <= tmax * 1.0001; d *= 10) for (const m of [1, 2, 5]) if (d * m <= tmax * 1.0001) ticks.push(d * m);
   } else {
-    ymin = 0; ymax = Math.max(100, ...pts.map(p => p.y)); ymax = Math.ceil(ymax / 20) * 20;
+    ymin = 0; ymax = Math.max(100, ...pts.map(p => p.y), ...share); ymax = Math.ceil(ymax / 20) * 20;
     Y = v => padT + (H - padT - padB) * (1 - v / ymax);
     ticks = []; for (let v = 0; v <= ymax; v += 20) ticks.push(v);
   }
@@ -192,8 +222,15 @@ function chart(host, yOf, yLog, yLabel, ideal) {
   }
   host.append(svg);
 }
-chart(document.getElementById('ctime'), r => r.min, true, 'Minutes per maximum timestep', true);
-chart(document.getElementById('ceff'), r => eff(r), false, 'Parallel efficiency', false);
+{
+  const tOf = (M, r) => r.min, eOf = (M, r) => M.eff(r);
+  const ts = yvals(MT, tOf, true).concat(yvals(MM, tOf, true));
+  const es = yvals(MT, eOf, false).concat(yvals(MM, eOf, false));
+  chart(document.getElementById('ctime'), tOf, true, 'Minutes per maximum timestep', true, MT, ts);
+  chart(document.getElementById('ceff'), eOf, false, 'Parallel efficiency', false, MT, es);
+  chart(document.getElementById('ctime_m'), tOf, true, 'Minutes per maximum timestep, main branch', true, MM, ts, 'Main branch');
+  chart(document.getElementById('ceff_m'), eOf, false, 'Parallel efficiency, main branch', false, MM, es, 'Main branch');
+}
 document.getElementById('refnote').textContent = one
   ? 'Reference: the 1-core run (the OpenMP-only build, 1 thread), for both series.'
   : 'The 1-core run has not finished yet: speed-up and efficiency are relative to the finished run with the fewest cores in each series (' +
