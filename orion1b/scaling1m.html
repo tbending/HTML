@@ -5,14 +5,14 @@
 <style>
 :root{color-scheme:light;--surface:#fcfcfb;--ink:#0b0b0b;--ink2:#52514e;
  --ink3:#7a7974;--grid:#e4e3df;--rule:#d6d5d0;--tip:#ffffff;
- --omp:#2a78d6;--mpi:#eb6834;--ideal:#9a998f}
+ --omp:#2a78d6;--mpi:#eb6834;--mpisr:#1baf7a;--ideal:#9a998f}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
  color-scheme:dark;--surface:#1a1a19;--ink:#f0efec;--ink2:#c3c2b7;
  --ink3:#9a998f;--grid:#2e2e2c;--rule:#3a3a37;--tip:#262624;
- --omp:#3987e5;--mpi:#d95926;--ideal:#7a7974}}
+ --omp:#3987e5;--mpi:#d95926;--mpisr:#199e70;--ideal:#7a7974}}
 :root[data-theme="dark"]{color-scheme:dark;--surface:#1a1a19;--ink:#f0efec;
  --ink2:#c3c2b7;--ink3:#9a998f;--grid:#2e2e2c;--rule:#3a3a37;--tip:#262624;
- --omp:#3987e5;--mpi:#d95926;--ideal:#7a7974}
+ --omp:#3987e5;--mpi:#d95926;--mpisr:#199e70;--ideal:#7a7974}
 body{margin:0;background:var(--surface);color:var(--ink);
  font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 main{max-width:1100px;margin:0 auto;padding:24px 16px 48px}
@@ -58,7 +58,8 @@ MPI: N ranks with one thread each. This code against sphNG main (bace503,
 June 2026: no domain checking and none of the thin-substep, RT or OpenMP
 changes), with the same build settings (RT with dust, iptdim 500, nummaxproc
 128, ipartialrevtree 2, -O3), dumps and input file. MPI uses the SEND path
-in both codes. Each row of plots shares its y axis, so the two codes
+in both codes; main also has a second MPI line with its default SENDRECV
+path. Each row of plots shares its y axis, so the two codes
 can be compared directly. Hover or focus a point for its values.</p>
 <p class="note">Everything on this page runs on a single socket of a single
 node: MPI messages pass through shared memory (Intel MPI with the shm
@@ -72,7 +73,7 @@ particles at the start of the step). Efficiency = T(ref) &times; cores(ref) /
 otherwise the finished run with the fewest cores in each series.</p>
 <div id="tip" role="tooltip"></div>
 <script>
-const D = [{"set": "t07", "title": "Early stage: t = 0.07, no sinks", "desc": "Start: the 1M run at t = 0.07 (dump COR0007), before any sink has formed; one maximum timestep of 0.01.", "ours": [{"mode": "omp", "n": 1, "status": "queued", "min": null, "first": null}, {"mode": "omp", "n": 2, "status": "queued", "min": null, "first": null}, {"mode": "omp", "n": 4, "status": "queued", "min": null, "first": null}, {"mode": "omp", "n": 8, "status": "queued", "min": null, "first": null}, {"mode": "omp", "n": 16, "status": "queued", "min": null, "first": null}, {"mode": "omp", "n": 32, "status": "queued", "min": null, "first": null}, {"mode": "omp", "n": 64, "status": "queued", "min": null, "first": null}, {"mode": "omp", "n": 128, "status": "queued", "min": null, "first": null}, {"mode": "mpi", "n": 2, "status": "queued", "min": null, "first": null}, {"mode": "mpi", "n": 4, "status": "queued", "min": null, "first": null}, {"mode": "mpi", "n": 8, "status": "queued", "min": null, "first": null}, {"mode": "mpi", "n": 16, "status": "queued", "min": null, "first": null}, {"mode": "mpi", "n": 32, "status": "queued", "min": null, "first": null}, {"mode": "mpi", "n": 64, "status": "queued", "min": null, "first": null}, {"mode": "mpi", "n": 128, "status": "queued", "min": null, "first": null}], "main": [{"mode": "omp", "n": 1, "status": "queued", "min": null, "first": null}, {"mode": "omp", "n": 2, "status": "queued", "min": null, "first": null}, {"mode": "omp", "n": 4, "status": "queued", "min": null, "first": null}, {"mode": "omp", "n": 8, "status": "queued", "min": null, "first": null}, {"mode": "omp", "n": 16, "status": "done", "min": 13.753, "first": null}, {"mode": "omp", "n": 32, "status": "done", "min": 7.884, "first": null}, {"mode": "omp", "n": 64, "status": "done", "min": 4.936, "first": null}, {"mode": "omp", "n": 128, "status": "done", "min": 3.519, "first": null}, {"mode": "mpi", "n": 2, "status": "queued", "min": null, "first": null}, {"mode": "mpi", "n": 4, "status": "queued", "min": null, "first": null}, {"mode": "mpi", "n": 8, "status": "running", "min": null, "first": null}, {"mode": "mpi", "n": 16, "status": "done", "min": 16.424, "first": null}, {"mode": "mpi", "n": 32, "status": "done", "min": 10.1, "first": null}, {"mode": "mpi", "n": 64, "status": "done", "min": 7.505, "first": null}, {"mode": "mpi", "n": 128, "status": "done", "min": 6.126, "first": null}]}, {"set": null, "title": "Late stage: with sinks", "desc": "The 1M run evolved further (dtmax 0.05, 8 ranks x 8 threads) until sinks have formed; the start dump is chosen from that run."}];
+const D = [{"set": "t07", "title": "Early stage: t = 0.07, no sinks", "desc": "Start: the 1M run at t = 0.07 (dump COR0007), before any sink has formed; one maximum timestep of 0.01.", "ours": [{"mode": "omp", "n": 1, "status": "queued", "min": null, "first": null}, {"mode": "omp", "n": 2, "status": "queued", "min": null, "first": null}, {"mode": "omp", "n": 4, "status": "queued", "min": null, "first": null}, {"mode": "omp", "n": 8, "status": "queued", "min": null, "first": null}, {"mode": "omp", "n": 16, "status": "queued", "min": null, "first": null}, {"mode": "omp", "n": 32, "status": "queued", "min": null, "first": null}, {"mode": "omp", "n": 64, "status": "queued", "min": null, "first": null}, {"mode": "omp", "n": 128, "status": "queued", "min": null, "first": null}, {"mode": "mpi", "n": 2, "status": "queued", "min": null, "first": null}, {"mode": "mpi", "n": 4, "status": "queued", "min": null, "first": null}, {"mode": "mpi", "n": 8, "status": "queued", "min": null, "first": null}, {"mode": "mpi", "n": 16, "status": "queued", "min": null, "first": null}, {"mode": "mpi", "n": 32, "status": "queued", "min": null, "first": null}, {"mode": "mpi", "n": 64, "status": "queued", "min": null, "first": null}, {"mode": "mpi", "n": 128, "status": "queued", "min": null, "first": null}], "main": [{"mode": "omp", "n": 1, "status": "queued", "min": null, "first": null}, {"mode": "omp", "n": 2, "status": "queued", "min": null, "first": null}, {"mode": "omp", "n": 4, "status": "queued", "min": null, "first": null}, {"mode": "omp", "n": 8, "status": "queued", "min": null, "first": null}, {"mode": "omp", "n": 16, "status": "done", "min": 13.753, "first": null}, {"mode": "omp", "n": 32, "status": "done", "min": 7.884, "first": null}, {"mode": "omp", "n": 64, "status": "done", "min": 4.936, "first": null}, {"mode": "omp", "n": 128, "status": "done", "min": 3.519, "first": null}, {"mode": "mpi", "n": 2, "status": "queued", "min": null, "first": null}, {"mode": "mpi", "n": 4, "status": "queued", "min": null, "first": null}, {"mode": "mpi", "n": 8, "status": "running", "min": null, "first": null}, {"mode": "mpi", "n": 16, "status": "done", "min": 16.424, "first": null}, {"mode": "mpi", "n": 32, "status": "done", "min": 10.1, "first": null}, {"mode": "mpi", "n": 64, "status": "done", "min": 7.505, "first": null}, {"mode": "mpi", "n": 128, "status": "done", "min": 6.126, "first": null}, {"mode": "mpisr", "n": 2, "status": "queued", "min": null, "first": null}, {"mode": "mpisr", "n": 4, "status": "queued", "min": null, "first": null}, {"mode": "mpisr", "n": 8, "status": "queued", "min": null, "first": null}, {"mode": "mpisr", "n": 16, "status": "queued", "min": null, "first": null}, {"mode": "mpisr", "n": 32, "status": "queued", "min": null, "first": null}, {"mode": "mpisr", "n": 64, "status": "queued", "min": null, "first": null}, {"mode": "mpisr", "n": 128, "status": "queued", "min": null, "first": null}]}, {"set": null, "title": "Late stage: with sinks", "desc": "The 1M run evolved further (dtmax 0.05, 8 ranks x 8 threads) until sinks have formed; the start dump is chosen from that run."}];
 const tip = document.getElementById('tip');
 const el = (t, a = {}, txt) => { const e = document.createElement(t);
   for (const [k, v] of Object.entries(a)) e.setAttribute(k, v);
@@ -94,8 +95,9 @@ function showTip(evt, rows) {
   tip.style.left = left + 'px'; tip.style.top = top + 'px';
 }
 const hideTip = () => { tip.style.opacity = 0; };
-const SER = [{key: 'omp', label: 'Pure OpenMP (1 process, N threads)', c: 'var(--omp)'},
-             {key: 'mpi', label: 'Pure MPI (N ranks, 1 thread)', c: 'var(--mpi)'}];
+const SER = [{key: 'omp', label: 'Pure OpenMP (1 process, N threads)', short: 'Pure OpenMP', c: 'var(--omp)'},
+             {key: 'mpi', label: 'Pure MPI (N ranks, 1 thread), SEND path', short: 'Pure MPI, SEND path', c: 'var(--mpi)'},
+             {key: 'mpisr', label: 'Pure MPI, SENDRECV path (main only)', short: 'Pure MPI, SENDRECV path', c: 'var(--mpisr)'}];
 const lg = document.getElementById('legend');
 for (const s of SER) { const li = el('li'), i = el('i'); i.style.background = s.c;
   li.append(i, document.createTextNode(s.label)); lg.append(li); }
@@ -170,7 +172,7 @@ function chart(host, yOf0, yLog, yLabel, ideal, M, share, what) {
         'aria-label': `${what} ${s.key} ${p.r.n} cores ${p.r.min} minutes`});
       const e = eff(p.r);
       const rows = () => [{cls: 'v', text: `${p.r.min.toFixed(2)} min per dtmax`},
-        {cls: 'k', text: `${what}, ${s.label.split(' (')[0]}, ${p.r.n} core${p.r.n > 1 ? 's' : ''}`},
+        {cls: 'k', text: `${what}, ${s.short}, ${p.r.n} core${p.r.n > 1 ? 's' : ''}`},
         ...(p.r.first !== null ? [{cls: 'k', text: `first time around ${p.r.first.toFixed(2)} min`}] : []),
         ...(e !== null ? [{cls: 'k', text: `efficiency ${e.toFixed(0)} %`}] : [])];
       c.addEventListener('pointermove', ev => showTip(ev, rows()));
@@ -183,7 +185,8 @@ function chart(host, yOf0, yLog, yLabel, ideal, M, share, what) {
 }
 const refText = (M, what) => M.one ? `${what}: reference is the 1-core run (OpenMP-only build, 1 thread), for both series.`
   : `${what}: no 1-core run yet; reference is the fewest-core finished run of each series (` +
-    SER.map(s => { const f = M.ref(s.key); return f ? `${s.key} ${f.n} cores` : `${s.key} none`; }).join(', ') + ').';
+    SER.filter(s => M.R.some(r => r.mode === s.key)).map(s => { const f = M.ref(s.key);
+      return `${s.short} ${f ? f.n + ' cores' : 'none yet'}`; }).join(', ') + ').';
 const host = document.getElementById('stages');
 for (const st of D) {
   host.append(el('h2', {}, st.title));
